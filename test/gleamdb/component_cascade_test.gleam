@@ -1,37 +1,45 @@
-import gleamdb
-import gleamdb/fact.{Int, Str}
-import gleamdb/engine.{AllAttributes}
-import gleeunit
-import gleeunit/should
+import gleam/list
 import gleam/dict
-
-pub fn main() {
-  gleeunit.main()
-}
+import gleeunit/should
+import gleamdb
+import gleamdb/fact
+import gleamdb/shared/types
+import gleamdb/engine
 
 pub fn component_cascade_test() {
   let db = gleamdb.new()
   
-  // Mark 'order/items' as a component
-  // Mark 'order/items' as a component
+  // 1. Setup Component Schema
   let assert Ok(_) = gleamdb.set_schema(db, "order/items", fact.AttributeConfig(unique: False, component: True))
+  let assert Ok(_) = gleamdb.set_schema(db, "item/name", fact.AttributeConfig(unique: False, component: False))
   
-  // Setup: Order (1) has Item (2)
+  // 2. Create Order with Items
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "order/id", Str("ORD-100")),
-    #(fact.EntityId(1), "order/items", Int(2)),
-    #(fact.EntityId(2), "item/sku", Str("VALVE-01")),
-    #(fact.EntityId(2), "item/qty", Int(5)),
+    #(fact.EntityId(1), "order/items", fact.Int(2)),
+    #(fact.EntityId(2), "item/name", fact.Str("Laptop")),
+    #(fact.EntityId(1), "order/items", fact.Int(3)),
+    #(fact.EntityId(3), "item/name", fact.Str("Mouse")),
   ])
   
-  // Verify Item (2) exists
-  let item_before = gleamdb.pull(db, 2, AllAttributes)
-  should.equal(dict.get(item_before, "item/sku"), Ok(engine.Single(Str("VALVE-01"))))
+  // 3. Verify existence
+  let results = gleamdb.query(db, [
+    gleamdb.p(#(types.Var("o"), "order/items", types.Var("i"))),
+    gleamdb.p(#(types.Var("i"), "item/name", types.Var("n")))
+  ])
+  should.equal(list.length(results), 2)
   
-  // Retract Order's items link
-  let assert Ok(_) = gleamdb.retract(db, [#(fact.EntityId(1), "order/items", Int(2))])
+  // 4. Retract Order (should cascade to items)
+  let assert Ok(_) = gleamdb.retract(db, [
+    #(fact.EntityId(1), "order/items", fact.Int(2)),
+    #(fact.EntityId(1), "order/items", fact.Int(3))
+  ])
   
-  // Verify Item (2) is recursively retracted (cascade)
-  let item_after = gleamdb.pull(db, 2, AllAttributes)
-  should.equal(item_after, dict.new())
+  // 5. Verify Laptop/Mouse also gone from item/name index
+  let item_after = gleamdb.pull(db, fact.EntityId(2), engine.AllAttributes)
+  should.equal(dict.size(item_after), 0)
+  
+  let results_after = gleamdb.query(db, [
+    gleamdb.p(#(types.Var("i"), "item/name", types.Var("n")))
+  ])
+  should.equal(list.length(results_after), 0)
 }

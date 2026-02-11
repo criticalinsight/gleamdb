@@ -17,6 +17,8 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **Bi-temporal Queries**: Query any entity `as_of` a specific transaction ID.
 - **Recursive Rules**: Easily model hierarchical data (org charts, dependency graphs) with logical purity.
 - **Pull API**: Declarative retrieval of nested entity skeletons.
+- **Sovereign Fabric**: Reactive graph propagation and cross-actor state synchronization.
+- **Surgically Clean**: 100% warning-free build, verified for correctness and utility.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
 
 ## ⚡ Performance

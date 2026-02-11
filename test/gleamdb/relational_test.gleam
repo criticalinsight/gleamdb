@@ -1,7 +1,7 @@
 import gleam/list
 import gleamdb
 import gleamdb/fact.{Str, Int}
-import gleamdb/engine
+import gleamdb/shared/types
 import gleam/dict
 import gleeunit
 import gleeunit/should
@@ -22,8 +22,8 @@ pub fn join_test() {
 
   // Query: Find entity e and age a where e has name "Alice" AND e has age a
   let result = gleamdb.query(db, [
-    gleamdb.p(#(engine.Var("e"), "name", engine.Val(Str("Alice")))),
-    gleamdb.p(#(engine.Var("e"), "age", engine.Var("a")))
+    gleamdb.p(#(types.Var("e"), "name", types.Val(Str("Alice")))),
+    gleamdb.p(#(types.Var("e"), "age", types.Var("a")))
   ])
   
   // all_vars: ["a", "e"] (sorted alphabetic)
@@ -38,17 +38,17 @@ pub fn retraction_test() {
   let assert Ok(_) = gleamdb.transact(db, [#(fact.EntityId(1), "status", Str("active"))])
   
   // Verify it exists
-  let res1 = gleamdb.query(db, [gleamdb.p(#(engine.Val(Int(1)), "status", engine.Var("s")))])
+  let res1 = gleamdb.query(db, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
   should.equal(res1, [dict.from_list([#("s", Str("active"))])])
 
   // Retract it
   let assert Ok(_) = gleamdb.retract(db, [#(fact.EntityId(1), "status", Str("active"))])
 
   // Verify it's gone
-  let res2 = gleamdb.query(db, [gleamdb.p(#(engine.Val(Int(1)), "status", engine.Var("s")))])
+  let res2 = gleamdb.query(db, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
   should.equal(res2, [])
 
   // Verify it STILL exists in the past (Time Travel)
-  let res_past = gleamdb.as_of(db, 1, [gleamdb.p(#(engine.Val(Int(1)), "status", engine.Var("s")))])
+  let res_past = gleamdb.as_of(db, 1, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
   should.equal(res_past, [dict.from_list([#("s", Str("active"))])])
 }

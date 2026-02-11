@@ -1,5 +1,5 @@
 import gleamdb
-import gleamdb/fact.{Int, Str}
+import gleamdb/fact.{Str}
 import gleeunit
 import gleeunit/should
 

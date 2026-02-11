@@ -1,11 +1,11 @@
 import gleam/dict
 import gleam/list
 import gleamdb
-import gleamdb/fact.{type Fact, Int, Str, List}
+import gleamdb/fact.{Int, Str, List}
+import gleamdb/shared/types.{type DbState}
 import gleamdb/engine.{AllAttributes, Single}
 import gleeunit
 import gleeunit/should
-import gleamdb/transactor.{type DbState}
 import gleamdb/index
 
 pub fn main() {
@@ -47,6 +47,6 @@ pub fn transaction_function_test() {
   ])
   
   // 4. Verify result
-  let res = gleamdb.pull(db, 1, AllAttributes)
+  let res = gleamdb.pull(db, fact.EntityId(1), AllAttributes)
   should.equal(dict.get(res, "age"), Ok(Single(Int(31))))
 }

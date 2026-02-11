@@ -1,37 +1,26 @@
 import gleam/list
 import gleam/int
 import gleam/string
-import gleam/dict.{type Dict}
+import gleam/dict
 import gleam/result
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
 import gleamdb/fact.{type Fact, type Datom, Datom, Assert}
-import gleamdb/index.{type Index, type AIndex}
+import gleamdb/index
 import gleamdb/storage.{type StorageAdapter}
 import gleam/io
+import gleamdb/reactive
+import gleamdb/shared/types.{type DbState}
 
 @external(erlang, "gleamdb_telemetry_ffi", "system_time")
 pub fn system_time() -> Int
 
-pub type DbState {
-  DbState(
-    adapter: StorageAdapter,
-    eavt: Index,
-    aevt: AIndex,
-    latest_tx: Int,
-    subscribers: List(Subject(List(Datom))),
-    schema: Dict(String, fact.AttributeConfig),
-    functions: Dict(String, fact.DbFunction(DbState)),
-    composites: List(List(String)),
-  )
-}
-
 pub type Message {
-  Transact(facts: List(Fact), reply_to: Subject(Result(DbState, String)))
-  Retract(facts: List(Fact), reply_to: Subject(Result(DbState, String)))
+  Transact(facts: List(fact.Fact), reply_to: Subject(Result(DbState, String)))
+  Retract(facts: List(fact.Fact), reply_to: Subject(Result(DbState, String)))
   GetState(reply_to: Subject(DbState))
-  Subscribe(pid: Subject(List(Datom)), reply_to: Subject(Nil))
-  RemoteTransact(datoms: List(Datom), reply_to: Subject(DbState))
+  Subscribe(pid: Subject(List(fact.Datom)), reply_to: Subject(Nil))
+  RemoteTransact(datoms: List(fact.Datom), reply_to: Subject(DbState))
   SetSchema(
     attr: String,
     config: fact.AttributeConfig,
@@ -39,6 +28,7 @@ pub type Message {
   )
   RegisterFunction(name: String, func: fact.DbFunction(DbState), reply_to: Subject(Nil))
   RegisterComposite(attrs: List(String), reply_to: Subject(Nil))
+  SetReactive(actor: Subject(reactive.Message))
 }
 
 pub type Db = Subject(Message)
@@ -59,7 +49,7 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
     }
   })
   
-  actor.new(DbState(
+  actor.new(types.DbState(
     adapter: adapter,
     eavt: eavt,
     aevt: aevt,
@@ -68,6 +58,7 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
     schema: dict.new(),
     functions: dict.new(),
     composites: [],
+    reactive_actor: process.new_subject(), // Placeholder
   ))
   |> actor.on_message(fn(state: DbState, msg: Message) {
     case msg {
@@ -131,18 +122,23 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
                     
                     io.println("[GleamDB] Transact: " <> int.to_string(duration) <> "ms (batch: " <> int.to_string(list.length(datoms)) <> ")")
                     
-                    // Notify subscribers
+                    // Notify subscribers (Legacy)
                     list.each(state.subscribers, fn(sub) {
                       process.send(sub, datoms)
                     })
 
                     let new_state =
-                      DbState(
+                      types.DbState(
                         ..state,
                         eavt: list.fold(datoms, state.eavt, index.insert_eavt),
                         aevt: list.fold(datoms, state.aevt, index.insert_aevt),
                         latest_tx: next_tx,
                       )
+                    
+                    // Notify Reactive layer
+                    let changed_attrs = list.map(datoms, fn(d) { d.attribute }) |> list.unique()
+                    process.send(state.reactive_actor, coerce(reactive.Notify(changed_attrs, new_state)))
+
                     process.send(reply_to, Ok(new_state))
                     actor.continue(new_state)
                   }
@@ -187,7 +183,7 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
             // Notify subscribers
             list.each(state.subscribers, fn(sub) { process.send(sub, expanded_datoms) })
 
-            let new_state = DbState(
+            let new_state = types.DbState(
               ..state,
               eavt: list.fold(expanded_datoms, state.eavt, index.insert_eavt),
               aevt: list.fold(expanded_datoms, state.aevt, index.insert_aevt),
@@ -205,7 +201,7 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
           let d: Datom = d
           case d.tx > acc { True -> d.tx False -> acc }
         })
-        let new_state = DbState(
+        let new_state = types.DbState(
           ..state,
           eavt: new_eavt,
           aevt: new_aevt,
@@ -216,7 +212,7 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
       }
       Subscribe(pid, reply_to) -> {
         process.send(reply_to, Nil)
-        actor.continue(DbState(..state, subscribers: [pid, ..state.subscribers]))
+        actor.continue(types.DbState(..state, subscribers: [pid, ..state.subscribers]))
       }
       GetState(reply_to) -> {
         process.send(reply_to, state)
@@ -244,7 +240,7 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
 
         case valid {
           True -> {
-            let new_state = DbState(..state, schema: dict.insert(state.schema, attr, config))
+            let new_state = types.DbState(..state, schema: dict.insert(state.schema, attr, config))
             process.send(reply_to, Ok(Nil))
             actor.continue(new_state)
           }
@@ -259,14 +255,17 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
         }
       }
       RegisterFunction(name, func, reply_to) -> {
-        let new_state = DbState(..state, functions: dict.insert(state.functions, name, func))
+        let new_state = types.DbState(..state, functions: dict.insert(state.functions, name, func))
         process.send(reply_to, Nil)
         actor.continue(new_state)
       }
       RegisterComposite(attrs, reply_to) -> {
-        let new_state = DbState(..state, composites: [attrs, ..state.composites])
+        let new_state = types.DbState(..state, composites: [attrs, ..state.composites])
         process.send(reply_to, Nil)
         actor.continue(new_state)
+      }
+      SetReactive(act) -> {
+        actor.continue(types.DbState(..state, reactive_actor: coerce(act)))
       }
     }
   })
@@ -284,10 +283,12 @@ fn expand_cascades(state: DbState, datoms: List(Datom), tx: Int) -> List(Datom) 
             case d.value {
               fact.Int(sub_eid) -> {
                 let sub_datoms = index.filter_by_entity(state.eavt, sub_eid)
-                let sub_retractions = list.map(sub_datoms, fn(sd) {
-                  Datom(sd.entity, sd.attribute, sd.value, tx, fact.Retract)
-                })
-                let recursively_expanded = expand_cascades(state, sub_retractions, tx)
+                let sub_retractions =
+                  list.map(sub_datoms, fn(sd) {
+                    Datom(sd.entity, sd.attribute, sd.value, tx, fact.Retract)
+                  })
+                let recursively_expanded =
+                  expand_cascades(state, sub_retractions, tx)
                 list.flatten([recursively_expanded, acc])
               }
               _ -> acc
@@ -473,4 +474,5 @@ pub fn set_schema(
   config: fact.AttributeConfig,
 ) -> Result(Nil, String) {
   process.call(db, 5000, SetSchema(attr, config, _))
-}
+}@external(erlang, "gleam_erl_ffi", "coerce")
+fn coerce(a: a) -> b

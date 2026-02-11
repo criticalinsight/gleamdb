@@ -1,10 +1,10 @@
 import gleam/list
-import gleamdb
-import gleamdb/fact.{Int}
-import gleamdb/engine.{Var, Negative, Aggregate, Count}
 import gleam/dict
 import gleeunit
 import gleeunit/should
+import gleamdb
+import gleamdb/fact.{Int}
+import gleamdb/shared/types
 
 pub fn main() {
   gleeunit.main()
@@ -21,14 +21,10 @@ pub fn negation_test() {
   ])
   
   let result = gleamdb.query(db, [
-    gleamdb.p(#(Var("e"), "name", Var("n"))),
-    Negative(#(Var("e"), "parent", Var("child")))
+    gleamdb.p(#(types.Var("e"), "name", types.Var("n"))),
+    types.Negative(#(types.Var("e"), "parent", types.Var("child")))
   ])
   
-  // Variables: ["child", "e", "n"] (sorted)
-  // Bob: [Int(-1), Int(2), fact.Str("Bob")]
-  // Charlie: [Int(-1), Int(3), fact.Str("Charlie")]
-  should.equal(list.length(result), 2)
   should.equal(list.length(result), 2)
   should.be_true(list.contains(result, dict.from_list([#("e", Int(2)), #("n", fact.Str("Bob"))])))
   should.be_true(list.contains(result, dict.from_list([#("e", Int(3)), #("n", fact.Str("Charlie"))])))
@@ -50,14 +46,10 @@ pub fn aggregation_test() {
   ])
   
   let result = gleamdb.query(db, [
-    gleamdb.p(#(Var("p"), "name", Var("n"))),
-    gleamdb.p(#(Var("p"), "parent", Var("child"))),
-    Aggregate("c", Count, "child")
+    gleamdb.p(#(types.Var("p"), "name", types.Var("n"))),
+    gleamdb.p(#(types.Var("p"), "parent", types.Var("child"))),
+    types.Aggregate("c", types.Count, "child")
   ])
-  
-  // Variables: ["c", "child", "n", "p"] (sorted)
-  // Alice: [Int(2), Int(-1), fact.Str("Alice"), Int(1)]
-  // Dave: [Int(1), Int(-1), fact.Str("Dave"), Int(4)]
   
   should.equal(list.length(result), 2)
   should.be_true(list.contains(result, dict.from_list([#("c", Int(2)), #("n", fact.Str("Alice")), #("p", Int(1))])))

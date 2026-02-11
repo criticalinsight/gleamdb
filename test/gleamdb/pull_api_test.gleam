@@ -21,22 +21,22 @@ pub fn pull_api_test() {
   ])
   
   // 1. Pull all attributes for Alice
-  let res1 = gleamdb.pull(db, 1, AllAttributes)
+  let res1 = gleamdb.pull(db, fact.EntityId(1), AllAttributes)
   should.equal(dict.get(res1, "name"), Ok(Single(Str("Alice"))))
   should.equal(dict.get(res1, "age"), Ok(Single(Int(30))))
   
   // 2. Pull selective attributes
-  let res2 = gleamdb.pull(db, 1, AttributeList(["name"]))
+  let res2 = gleamdb.pull(db, fact.EntityId(1), AttributeList(["name"]))
   should.equal(dict.get(res2, "name"), Ok(Single(Str("Alice"))))
   should.equal(dict.get(res2, "age"), Error(Nil))
   
   // 3. Pull nested friend
-  let res3 = gleamdb.pull(db, 1, Nested("friend", AllAttributes))
+  let res3 = gleamdb.pull(db, fact.EntityId(1), Nested("friend", AllAttributes))
   let assert Ok(Map(friend_map)) = dict.get(res3, "friend")
   should.equal(dict.get(friend_map, "name"), Ok(Single(Str("Bob"))))
   
   // 4. Deep pattern
-  let res4 = gleamdb.pull(db, 1, Deep([
+  let res4 = gleamdb.pull(db, fact.EntityId(1), Deep([
     AttributeList(["age"]),
     Nested("friend", AttributeList(["name"]))
   ]))

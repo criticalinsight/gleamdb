@@ -17,6 +17,7 @@ pub type Value {
   Int(Int)
   Bool(Bool)
   List(List(Value))
+  Vec(List(Float))
 }
 
 pub type Operation {
@@ -25,10 +26,7 @@ pub type Operation {
 }
 
 pub type AttributeConfig {
-  AttributeConfig(
-    unique: Bool,
-    component: Bool,
-  )
+  AttributeConfig(unique: Bool, component: Bool)
 }
 
 /// A Fact is #(Eid, Attribute, Value) for assertion,

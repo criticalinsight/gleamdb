@@ -1,28 +1,29 @@
-import gleam/option.{None, Some}
+import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/result
-import gleam/erlang/process
-import gleamdb/fact
-import gleamdb/transactor
-import gleamdb/global
-import gleamdb/engine.{type BodyClause, Positive}
-import gleamdb/storage/mnesia
-import gleamdb/storage
-
+import gleam/erlang/process.{type Subject}
+import gleamdb/fact.{type AttributeConfig, type Fact}
+import gleamdb/engine
+import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult}
+import gleamdb/transactor.{SetReactive}
 pub type Db = transactor.Db
-pub type DbState = transactor.DbState
-pub type Fact = fact.Fact
-pub type Value = fact.Value
+import gleamdb/reactive
+import gleamdb/storage/mnesia
+import gleamdb/storage.{type StorageAdapter}
+import gleamdb/global
 
 pub fn new() -> Db {
   new_with_adapter(None)
 }
 
-pub fn new_with_adapter(adapter: option.Option(storage.StorageAdapter)) -> Db {
+pub fn new_with_adapter(adapter: Option(StorageAdapter)) -> Db {
   let store = case adapter {
     Some(s) -> s
     None -> mnesia.adapter()
   }
   let assert Ok(db) = transactor.start_link(store)
+  let assert Ok(react) = reactive.start_link()
+  process.send(db, SetReactive(react))
   db
 }
 
@@ -54,7 +55,7 @@ pub fn transact_with_timeout(
 pub fn set_schema(
   db: Db,
   attr: String,
-  config: fact.AttributeConfig,
+  config: AttributeConfig,
 ) -> Result(Nil, String) {
   transactor.set_schema(db, attr, config)
 }
@@ -66,16 +67,16 @@ pub fn retract(db: Db, facts: List(Fact)) -> Result(DbState, String) {
 pub fn register_function(
   db: Db,
   name: String,
-  func: fact.DbFunction(transactor.DbState),
+  func: fact.DbFunction(DbState),
 ) -> Nil {
-  process.call(db, 5000, transactor.RegisterFunction(name, func, _))
+  process.send(db, transactor.RegisterFunction(name, func, process.new_subject()))
 }
 
 pub fn register_composite(db: Db, attrs: List(String)) -> Nil {
-  process.call(db, 5000, transactor.RegisterComposite(attrs, _))
+  process.send(db, transactor.RegisterComposite(attrs, process.new_subject()))
 }
 
-pub fn query(db: Db, clauses: List(BodyClause)) -> engine.QueryResult {
+pub fn query(db: Db, clauses: List(BodyClause)) -> QueryResult {
   let state = transactor.get_state(db)
   engine.run(state, clauses, [], None)
 }
@@ -84,26 +85,42 @@ pub fn query_with_rules(
   db: Db,
   clauses: List(BodyClause),
   rules: List(engine.Rule),
-) -> engine.QueryResult {
+) -> QueryResult {
   let state = transactor.get_state(db)
   engine.run(state, clauses, rules, None)
 }
 
-pub fn as_of(db: Db, tx: Int, clauses: List(BodyClause)) -> engine.QueryResult {
+pub fn as_of(db: Db, tx: Int, clauses: List(BodyClause)) -> QueryResult {
   let state = transactor.get_state(db)
   engine.run(state, clauses, [], Some(tx))
 }
 
-pub fn pull(
-  db: Db,
-  eid: Int,
-  pattern: engine.PullPattern,
-) -> engine.PullResult {
+pub fn pull(db: Db, eid: fact.Eid, pattern: engine.PullPattern) -> engine.PullResult {
   let state = transactor.get_state(db)
-  engine.pull(state, eid, pattern)
+  let assert fact.EntityId(id) = eid
+  engine.pull(state, fact.EntityId(id), pattern)
 }
 
-// Convenience helpers
-pub fn p(clause: engine.Clause) -> BodyClause {
-  Positive(clause)
+pub fn subscribe(db: Db, query: List(BodyClause), subscriber: Subject(QueryResult)) -> Nil {
+  let state = transactor.get_state(db)
+  
+  // Extract attributes from query to optimize notifications
+  let attrs = list.filter_map(query, fn(q) {
+    case q {
+      types.Positive(clause) | types.Negative(clause) -> {
+        let #(_, a, _) = clause
+        Ok(a)
+      }
+      _ -> Error(Nil)
+    }
+  })
+  
+  process.send(state.reactive_actor, coerce(reactive.Subscribe(query, attrs, subscriber)))
 }
+
+pub fn p(clause: types.Clause) -> BodyClause {
+  types.Positive(clause)
+}
+
+@external(erlang, "gleam_erl_ffi", "coerce")
+fn coerce(a: a) -> b

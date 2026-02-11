@@ -2,6 +2,7 @@ import gleam/list
 import gleam/result
 import gleamdb
 import gleamdb/fact.{Int}
+import gleamdb/shared/types
 import gleamdb/engine.{Rule}
 import gleam/dict
 import gleeunit
@@ -26,22 +27,22 @@ pub fn recursive_ancestor_test() {
   let rules = [
     Rule(
       name: "ancestor_base",
-      head: #(engine.Var("x"), "ancestor", engine.Var("y")),
-      body: [gleamdb.p(#(engine.Var("x"), "parent", engine.Var("y")))]
+      head: #(types.Var("x"), "ancestor", types.Var("y")),
+      body: [gleamdb.p(#(types.Var("x"), "parent", types.Var("y")))]
     ),
     Rule(
       name: "ancestor_recursive",
-      head: #(engine.Var("x"), "ancestor", engine.Var("z")),
+      head: #(types.Var("x"), "ancestor", types.Var("z")),
       body: [
-        gleamdb.p(#(engine.Var("x"), "parent", engine.Var("y"))),
-        gleamdb.p(#(engine.Var("y"), "ancestor", engine.Var("z")))
+        gleamdb.p(#(types.Var("x"), "parent", types.Var("y"))),
+        gleamdb.p(#(types.Var("y"), "ancestor", types.Var("z")))
       ]
     )
   ]
 
   // Query: Find all ancestors of 1
   let result = gleamdb.query_with_rules(db, [
-    gleamdb.p(#(engine.Val(Int(1)), "ancestor", engine.Var("anc")))
+    gleamdb.p(#(types.Val(Int(1)), "ancestor", types.Var("anc")))
   ], rules)
   
   // Should find 2 and 3
