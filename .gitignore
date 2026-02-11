@@ -1,0 +1,8 @@
+
+# Gleam build artifacts
+build/
+*.beam
+erl_crash.dump
+
+# Sly Agent Data
+.sly/

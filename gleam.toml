@@ -1,0 +1,10 @@
+name = "gleamdb"
+version = "0.1.0"
+
+[dependencies]
+gleam_stdlib = ">= 0.40.0"
+gleam_erlang = ">= 0.25.0"
+gleam_otp = ">= 0.10.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0"
