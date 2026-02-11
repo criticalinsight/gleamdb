@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/int
 import gleam/result
 import gleam/dict
 import gleam/string
@@ -6,6 +7,11 @@ import gleam/order.{type Order}
 import gleam/option.{type Option, None, Some}
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
+import gleam/io
+
+@external(erlang, "gleamdb_telemetry_ffi", "system_time")
+pub fn system_time() -> Int
+
 import gleamdb/fact.{type Value, type Datom, Int, Assert, Datom}
 import gleamdb/transactor.{type DbState}
 import gleamdb/index
@@ -90,7 +96,23 @@ pub fn start_query(
   |> result.map(fn(started) { started.data })
 }
 
+
 fn execute_query(
+  db_state: DbState,
+  clauses: List(BodyClause),
+  rules: List(Rule),
+  as_of_tx: Option(Int)
+) -> QueryResult {
+  let start = system_time()
+  let result = do_execute_query(db_state, clauses, rules, as_of_tx)
+  let end = system_time()
+  let duration = end - start
+  
+  io.println("[GleamDB] Query: " <> int.to_string(duration) <> "ms (" <> int.to_string(list.length(result)) <> " results)")
+  result
+}
+
+fn do_execute_query(
   db_state: DbState,
   clauses: List(BodyClause),
   rules: List(Rule),

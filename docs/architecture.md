@@ -47,6 +47,13 @@ The development followed seven distinct phases, each layering complexity only wh
     2.  **Native Search Integration:** Instead of complecting the relational engine with search, we delegate to host-native capabilities (e.g., **SQLite FTS5**).
 *   **Hickey Principle:** De-complect Search from Relational Storage. Facts are for relations; indices are for retrieval.
 
+### Phase 13: The Performance Ceiling (Monitoring)
+*   **The Problem:** Under massive concurrent load (e.g., Amkabot stress test), actor mailboxes overflowed, and transactions timed out (>5000ms).
+*   **The Solution:**
+    1.  **WAL Mode:** Enabled SQLite Write-Ahead Logging to allow non-blocking concurrent reads/writes.
+    2.  **Configurable Timeouts:** Implemented `transact_with_timeout` to allow large batches to complete without crashing the calling process.
+*   **Result:** Stable ingestion of ~120k datoms/sec.
+
 ## Core Philosophy: What Would Rich Hickey Do?
 
 Throughout development, we asked: *Is the increased complexity worth the utility?*
@@ -66,6 +73,7 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 | **Recursive Types** | Anonymous loop functions | Named recursive functions with explicit signatures. |
 | **Ingestion Latency** | Sequential IO (N writes) | Atomic `persist_batch` protocol (~55x faster). |
 | **Substring Search** | Relational Datalog bottleneck | De-complected native FTS5 integration. |
+| **Actor Timeouts** | Sync calls on massive batches | SQLite WAL Mode + Configurable `transact_with_timeout`. |
 
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

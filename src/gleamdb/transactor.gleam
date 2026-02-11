@@ -8,6 +8,10 @@ import gleam/otp/actor
 import gleamdb/fact.{type Fact, type Datom, Datom, Assert}
 import gleamdb/index.{type Index, type AIndex}
 import gleamdb/storage.{type StorageAdapter}
+import gleam/io
+
+@external(erlang, "gleamdb_telemetry_ffi", "system_time")
+pub fn system_time() -> Int
 
 pub type DbState {
   DbState(
@@ -120,7 +124,12 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
                     actor.continue(state)
                   }
                   Ok(datoms) -> {
+                    let start = system_time()
                     state.adapter.persist_batch(datoms)
+                    let end = system_time()
+                    let duration = end - start
+                    
+                    io.println("[GleamDB] Transact: " <> int.to_string(duration) <> "ms (batch: " <> int.to_string(list.length(datoms)) <> ")")
                     
                     // Notify subscribers
                     list.each(state.subscribers, fn(sub) {
@@ -167,8 +176,13 @@ pub fn start_link(adapter: StorageAdapter) -> Result(Db, actor.StartError) {
             actor.continue(state)
           }
           Ok(datoms) -> {
+            let start = system_time()
             let expanded_datoms = expand_cascades(state, datoms, next_tx)
             state.adapter.persist_batch(expanded_datoms)
+            let end = system_time()
+            let duration = end - start
+            
+            io.println("[GleamDB] Retract: " <> int.to_string(duration) <> "ms (batch: " <> int.to_string(list.length(expanded_datoms)) <> ")")
             
             // Notify subscribers
             list.each(state.subscribers, fn(sub) { process.send(sub, expanded_datoms) })
@@ -427,6 +441,14 @@ fn check_composite(state: DbState, facts: List(Fact), attrs: List(String)) -> Re
 
 pub fn transact(db: Db, facts: List(Fact)) -> Result(DbState, String) {
   process.call(db, 5000, Transact(facts, _))
+}
+
+pub fn transact_with_timeout(
+  db: Db,
+  facts: List(Fact),
+  timeout: Int,
+) -> Result(DbState, String) {
+  process.call(db, timeout, Transact(facts, _))
 }
 
 pub fn retract(db: Db, facts: List(Fact)) -> Result(DbState, String) {

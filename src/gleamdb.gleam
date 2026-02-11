@@ -43,6 +43,14 @@ pub fn transact(db: Db, facts: List(Fact)) -> Result(DbState, String) {
   transactor.transact(db, facts)
 }
 
+pub fn transact_with_timeout(
+  db: Db,
+  facts: List(Fact),
+  timeout: Int,
+) -> Result(DbState, String) {
+  transactor.transact_with_timeout(db, facts, timeout)
+}
+
 pub fn set_schema(
   db: Db,
   attr: String,
