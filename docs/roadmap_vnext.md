@@ -2,19 +2,13 @@
 
 GleamDB v1.3.0 is a milestone of recovery. The next step is a milestone of **Maturity**. We must address the "Hickey Gaps" to move from a prototype to a high-performance information system.
 
-## Performance & Scale Gaps
+## [x] COMPLETED: The Sovereign Performance (Phase 18-20)
+- **Batch Persistence**: Single I/O commit per transaction implemented in `transactor.gleam`.
+- **Silicon Saturation**: Concurrent read-concurrency via ETS indices.
+- **Durable Fabric**: Mnesia substrate for BEAM-native persistence and distribution.
+- **Set-based Diffing**: O(N) Reactive Datalog scaling.
 
-### 1. The Persistence Bottleneck
-- **Problem**: `transactor.gleam` persists every datom individually during recursion (`persist_batch([datom])`). This is O(N) I/O operations per transaction.
-- **Hickey Solution**: De-complect the transaction from the persistence. Accumulate the transaction's `Assert` and `Retract` datoms and perform a single, atomic **Sovereign Commit** at the end.
-
-### 2. Naive Datalog Recursion
-- **Problem**: `engine.do_derive` re-evaluates all rules in every iteration.
-- **Hickey Solution**: **Semi-Naive Evaluation**. Only apply rules to facts that were newly derived in the *last* iteration.
-
-### 3. Linear Reactive Diffing
-- **Problem**: `reactive.diff` uses `list.contains` in a filter, creating O(N*M) complexity.
-- **Hickey Solution**: Use **Sets** for O(N+M) diffing of query results.
+## Performance & Scale Roadmap (Phase 21+)
 
 ## Functional & Architectural Gaps
 
@@ -32,18 +26,17 @@ GleamDB v1.3.0 is a milestone of recovery. The next step is a milestone of **Mat
 
 ---
 
-## Phase 18: The Sovereign Performance
-| Feature | Description | Status |
-| :--- | :--- | :--- |
-| **Batch Persistence** | Single I/O commit per transaction. | TODO |
-| **Semi-Naive Solver** | Optimized Datalog recursion. | TODO |
-| **Set-based Diffing** | O(N) Reactive Datalog scaling. | TODO |
+### 7. Raft-based Consensus
+- **Problem**: The current Sovereign Fabric uses a single leader without automated election for failover.
+- **Hickey Solution**: Implement a Raft-based consensus module for zero-downtime leader promotion.
 
-## Phase 19: The Logical Completeness
-| Feature | Description | Status |
-| :--- | :--- | :--- |
-| **Real Aggregates** | Implementation of `Count`, `Sum`, `Min`, `Max`. | TODO |
-| **Similarity Discovery** | Index-backed vector search for unbound vars. | TODO |
-| **ID Sovereignty** | Distinct Entity ID wrapper type. | TODO |
+### 8. Optimized Pull API
+- **Problem**: Large nested pulls can be expensive if not properly indexed.
+- **Hickey Solution**: Specialized `Pull` indices that pre-cache common nesting patterns.
 
-RichHickey = "🧙🏾‍♂️: A system that is correct but slow is merely a theory. A system that is correct and sovereign must respect the reality of the machine."
+---
+
+## Current Status: Phase 20 (Durable Sovereign)
+The system is now correct, durable, and concurrent. We are entering the stage of **Resilient Maturity**.
+
+RichHickey = "🧙🏾‍♂️: A system that is correct but slow is merely a theory. A system that is correct, durable, and sovereign is a foundation. Now, we build for resilience."

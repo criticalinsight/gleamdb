@@ -1,6 +1,6 @@
 # PRD: Phase 9 - The Completeness
 
-**Status**: Draft
+**Status**: IMPLEMENTED
 **Priority**: P0
 **Owner**: Rich Hickey 🧙🏾‍♂️
 
@@ -14,20 +14,20 @@ GleamDB has achieved Entity Purity, but it lacks the primitives for **Atomic Log
 
 ## Acceptance Criteria
 ### Transaction Functions
-- [ ] GIVEN a registered function `inc`
-- [ ] WHEN I transact `[:db/fn "inc" [entity "age" 1]]`
-- [ ] THEN the transactor resolves the current value, computes the increment, and persists the new fact atomically.
-- [ ] FAILURE: If the function crashes, the entire transaction is rolled back (Mnesia transaction).
+- [x] GIVEN a registered function `inc`
+- [x] WHEN I transact `[:db/fn "inc" [entity "age" 1]]`
+- [x] THEN the transactor resolves the current value, computes the increment, and persists the new fact atomically.
+- [x] FAILURE: If the function crashes, the entire transaction is rolled back (Mnesia transaction).
 
 ### Composite Uniqueness
-- [ ] GIVEN a schema defining a unique composite `[attr-a, attr-b]`
-- [ ] WHEN I transact facts that would create a duplicate pair
-- [ ] THEN the transaction is rejected with a descriptive error.
+- [x] GIVEN a schema defining a unique composite `[attr-a, attr-b]`
+- [x] WHEN I transact facts that would create a duplicate pair
+- [x] THEN the transaction is rejected with a descriptive error.
 
 ### Schema Guards
-- [ ] GIVEN an existing dataset
-- [ ] WHEN I attempt to apply a schema change that contradicts existing data (e.g., making a non-unique attribute unique)
-- [ ] THEN the schema update is rejected.
+- [x] GIVEN an existing dataset
+- [x] WHEN I attempt to apply a schema change that contradicts existing data (e.g., making a non-unique attribute unique)
+- [x] THEN the schema update is rejected.
 
 ## Technical Implementation
 

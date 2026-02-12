@@ -1,6 +1,6 @@
 # GleamDB: A Mature Datalog Engine for the BEAM
 
-**Status**: Draft
+**Status**: REFERENCE
 **Priority**: P0
 **Owner**: Rich Hickey (Simulated)
 
@@ -106,18 +106,17 @@ Every piece of data is stored as a Datomic-style tuple:
 *   **T**: Transaction ID (Time)
 *   **Op**: Boolean (True = Assert, False = Retract)
 
-### 2. Indexes (Covering Indices)
-To support efficient Datalog execution, we maintain sorted covering indices (B-Trees or LSM-Trees):
-*   **EAVT**: Efficient access by Entity (Row-oriented view)
-*   **AEVT**: Efficient access by Attribute (Column-oriented view)
-*   **AVET**: Efficient access by Value (Index lookup)
-*   **VAET**: Efficient reverse lookup (Graph traversal)
+### 2. Indexes (Silicon Saturation)
+To support efficient Datalog execution, we maintain lock-free ETS indices:
+- **EAVT**: Bucketed `Dict` or ETS `duplicate_bag` for entity-first lookups.
+- **AEVT**: Attribute-first lookups for index scans.
+- **AVET**: Value-based lookups for uniqueness and similarity.
+- **Silicon Saturation**: ETS `read_concurrency` enables O(1) concurrent reads across all nodes.
 
 ### 3. Architecture components
 *   **`gleamdb/engine`**: The core semi-naive evaluation engine.
 *   **`gleamdb/storage`**: Protocols for KV storage (Adapters for Ets, Mnesia, SQLite).
 *   **`gleamdb/transactor`**: Serializes writes, assigns Tx IDs, notifies listeners.
-*   **`gleamdb/api`**: The public facing Gleam API.
 
 ### 4. Data Flow
 1.  **Write**: `API -> Transactor -> (Validation) -> (Log Write) -> (Index Update) -> Storage`.

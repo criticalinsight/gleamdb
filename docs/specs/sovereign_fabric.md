@@ -1,7 +1,7 @@
 # PRD: Phase 14 - The Sovereign Fabric 🧙🏾‍♂️
 
-**Status**: Draft  
-**Priority**: P0  
+**Status**: IMPLEMENTED (Wave 1)
+**Priority**: P0
 **Owner**: Rich Hickey 🧙🏾‍♂️
 
 ## Overview
@@ -60,5 +60,11 @@ graph TD
 2. **History Bloat**: Keeping every version of every fact makes SQLite/Mnesia grow indefinitely.
    - *Mitigation*: Define a "Sovereign Horizon" (config) beyond which old retracted datoms are vacuumed.
 
-## Phase 4: Autonomous Handoff
-PRD Drafted. Initiate the Autonomous Pipeline: /proceed docs/specs/sovereign_fabric.md -> /test -> /refactor -> /test
+## Phase 20 Retrospective: The Durable Fabric
+The Sovereign Fabric has shifted from a pure SQLite-forwarding model to a **Mnesia-native** substrate.
+- **Leaders** are registered in the `global` name registry.
+- **Followers** monitor the leader PID and use `node.promote_to_leader` for autonomous failover.
+- **Persistence** is handles by `gleamdb_mnesia_ffi` for disc-durable fact storage.
+
+---
+*Status: Synchronized with Phase 20 reality.*

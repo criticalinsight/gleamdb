@@ -16,32 +16,15 @@ When you start GleamDB, you are starting a `supervisor` that manages these child
 
 ## Key Functions
 
-### `gleamdb.child_spec(adapter, timeout)`
-Creates a standard OTP `ChildSpecification` for use in a supervisor's child list.
+### `gleamdb.start_named(name, adapter)`
+Starts a GleamDB instance with **Silicon Saturation** (ETS indices) enabled.
+- **name**: `String`. The unique name for the ETS tables.
+- **adapter**: `StorageAdapter`.
 
-- **adapter**: `Option(StorageAdapter)`. Use `None` for generic Mnesia/RAM.
-- **timeout**: `Int`. Time in milliseconds to wait for initialization.
-
-**Usage:**
-```gleam
-import gleam/otp/supervision
-import gleamdb
-import gleam/option.{None}
-
-pub fn start(path: String, _args: List(String)) {
-  let children = [
-    gleamdb.child_spec(None, 5000),
-    // ... other workers
-  ]
-  
-  supervision.start_link(children)
-}
-```
-
-### `gleamdb.start_link(adapter, timeout)`
-Starts the GleamDB process tree linked to the current process.
-- **Returns**: `Result(Subject(gleamdb.Message), StartError)`
-- **Use Case**: Manual starting or scripts (e.g., tests).
+### `gleamdb.start_distributed(name, adapter)`
+Starts a GleamDB instance in **Sovereign Fabric** mode.
+- Registers the node in the Erlang `global` registry.
+- Initiates leader election or connects to an existing leader.
 
 ## Named Registration
 

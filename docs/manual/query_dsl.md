@@ -45,6 +45,22 @@ Adds a **Negative** clause. Matches only if the fact does *not* exist.
 |> q.negate(q.v("e"), "user/role", q.s("Admin"))
 ```
 
+### 4. Aggregates
+GleamDB supports nested aggregate clauses. These take a target variable, a filter sub-query, and an output variable.
+- `q.count(into, target, filter)`
+- `q.sum(into, target, filter)`
+- `q.avg(into, target, filter)`
+- `q.min(into, target, filter)`
+- `q.max(into, target, filter)`
+
+```gleam
+let query = q.select(["count"])
+  |> q.count("count", "e", [
+      q.where(q.v("e"), "user/status", q.s("active"))
+  ])
+  |> q.to_clauses()
+```
+
 ### Helpers
 - `q.v(name)`: Creates a Variable (`Var`).
 - `q.s(val)`: Creates a String Value (`Val(Str)`).
