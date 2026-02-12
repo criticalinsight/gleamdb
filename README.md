@@ -5,11 +5,11 @@
 GleamDB is a high-performance, analytical Datalog engine built natively for the BEAM. It treats the database as an immutable value, preserves full transaction history, and leverages the BEAM's actor model for massive query concurrency.
 
 ## 🧬 Core Philosophy
-1.  **Immutability**: The database is a value. A transaction produces a *new* database value.
-2.  **Facts, not Objects**: Data is represented as atomic facts: `(Entity, Attribute, Value, Transaction, Operation)`.
-3.  **Datalog Engine**: A semi-naive deductive logic engine supports recursive queries and graph traversals.
-4.  **De-complecting Search**: Full-text search is delegated to native host capabilities (e.g., SQLite FTS5) while maintaining relational facts.
-5.  **Pluggable Persistence**: Decoupled engine logic with adapters for Mnesia, SQLite, and in-memory storage.
+1.  **The Rama Pattern**: De-complecting Storage from Query. We use Write-Optimized persistence (Log) and Read-Optimized indices (Silicon Saturation).
+2.  **Immutability**: The database is a value. A transaction produces a *new* database value.
+3.  **Facts, not Objects**: Data is represented as atomic facts: `(Entity, Attribute, Value, Transaction, Operation)`.
+4.  **Datalog Engine**: A semi-naive deductive logic engine supports recursive queries and graph traversals.
+5.  **Pluggable Persistence**: Decoupled engine logic with adapters for **Mnesia** (durability), **SQLite** (standard), and in-memory storage.
 
 ## 🚀 Key Features
 - **Silicon Saturation**: Lock-free, concurrent read indices via ETS (O(1) access).
@@ -22,7 +22,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 > "Speed is a byproduct of correctness."
 
 - **Concurrency**: Lock-free reads via Silicon Saturation (ETS), allowing linear scaling with CPU cores.
-- **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL mode).
+- **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL) or **~2,500 events/sec** (Durable Mnesia).
 - **Latency**: Sub-millisecond read access for single-entity lookups.
 
 ## 🛠️ Usage

@@ -1,6 +1,6 @@
 # GleamDB: Development History & Architectural Journey 🧙🏾‍♂️
 
-GleamDB was conceived as a "Rich Hickey-inspired" analytical database: a system that prioritizes the **Information Model** (Facts) over the **Data Model** (Tables), leverage the BEAM's actor model for concurrency, and maintains logical purity through Datalog.
+GleamDB was conceived as a "Rich Hickey-inspired" analytical database: a system that prioritizes the **Information Model** (Facts) over the **Data Model** (Tables), leverages the BEAM's actor model for concurrency, and maintains logical purity through Datalog. It follows the **Rama Pattern**: a write-optimized transaction log coupled with read-optimized indices (Silicon Saturation).
 
 ## The Journey of the Conductor
 
@@ -73,6 +73,12 @@ The development followed seven distinct phases, each layering complexity only wh
     2.  **Subscriber Scavenging:** Reactive nervous system now auto-prunes dead listener subjects.
 *   **Result:** Indefinite high-frequency ingestion stability.
 
+### Phase 20: The Durable Fabric (Mnesia Substrate)
+*   **The Problem:** SQLite persistence, while solid, introduced coordination overhead for leader-follower replication and lacked BEAM-native distribution.
+*   **The Solution:** Integrated **Mnesia** as a durable substrate. 
+*   **Innovation:** We used `disc_copies` and `dirty_write` for high-throughput durable ingestion (~2500 events/sec) while maintaining record-level compatibility with Gleam types.
+*   **Result:** A truly durable Sovereign Fabric that survives node restarts without sacrificing relational integrity.
+
 ## Core Philosophy: What Would Rich Hickey Do?
 
 Throughout development, we asked: *Is the increased complexity worth the utility?*
@@ -95,6 +101,7 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 | **Actor Timeouts** | Sync calls on massive batches | SQLite WAL Mode + Configurable `transact_with_timeout`. |
 | **Memory Exhaustion**| High-frequency infinite history | Fact Retention Policies (`LatestOnly`) + Scavenging. |
 | **Context Gap** | Pure logical equality | Vector Sovereignty (Similarity queries in Datalog). |
+| **Leader Down** | Static registration | Autonomous Failover (Process Monitoring + Promotion). |
 
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

@@ -1,5 +1,5 @@
 -module(gleamdb_global_ffi).
--export([register/2, whereis/1]).
+-export([register/2, whereis/1, unregister/1]).
 
 register(Name, Pid) ->
     case global:register_name(Name, Pid) of
@@ -12,3 +12,7 @@ whereis(Name) ->
         undefined -> {error, nil};
         Pid -> {ok, Pid}
     end.
+
+unregister(Name) ->
+    global:unregister_name(Name),
+    nil.

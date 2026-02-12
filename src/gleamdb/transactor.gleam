@@ -13,6 +13,7 @@ import gleamdb/storage
 import gleamdb/global
 import gleamdb/reactive
 import gleamdb/index/ets as ets_index
+import gleamdb/process_extra
 
 pub type Message {
   Transact(List(fact.Fact), process.Subject(Result(types.DbState, String)))

@@ -2,12 +2,21 @@
 -export([init/0, persist/1, persist_batch/1, recover/0]).
 
 init() ->
-    application:ensure_all_started(mnesia),
-    mnesia:create_table(datoms, [
+    case mnesia:system_info(is_running) of
+        yes -> ok;
+        _ -> 
+            _ = mnesia:create_schema([node()]),
+            application:ensure_all_started(mnesia)
+    end,
+    case mnesia:create_table(datoms, [
         {record_name, datom},
         {attributes, [entity, attribute, value, tx, operation]},
-        {ram_copies, [node()]}
-    ]),
+        {disc_copies, [node()]}
+    ]) of
+        {atomic, ok} -> ok;
+        {aborted, {already_exists, datoms}} -> ok;
+        _ -> ok
+    end,
     mnesia:wait_for_tables([datoms], 5000),
     nil.
 

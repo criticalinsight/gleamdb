@@ -51,4 +51,12 @@ The leader will process the transaction, persist it, and then broadcast the resu
 ## Reliability
 
 - **Network Partition**: If a follower loses connection to the leader, it remains readable (local cache) but cannot perform transactions until the connection is restored.
-- **Leader Failure**: In the current version, leader failover requires manual intervention or a global name reset. Future versions will support Raft-based automated failover.
+- **Autonomous Failover**: GleamDB leverages the BEAM's process monitoring for auto-healing. As demonstrated in the **Gswarm Fabric**, followers can monitor the leader's PID and trigger `node.promote_to_leader` if the link is severed.
+
+### Failover Pattern (The Fabric Protocol)
+When a follower detects a leader DOWN signal:
+1.  Verify if the node should become the new leader (e.g., using `global:register_name`).
+2.  Promote the local database context using `node.promote_to_leader`.
+3.  Resume high-frequency ingestion and reactive reflexes locally.
+
+This pattern ensures that the Sovereign Fabric remains resilient to single-node failures while maintaining linearizable consistency through a single active leader.
