@@ -26,12 +26,10 @@ pub fn recursive_ancestor_test() {
   // 2. ancestor(X, Z) :- parent(X, Y), ancestor(Y, Z)
   let rules = [
     Rule(
-      name: "ancestor_base",
       head: #(types.Var("x"), "ancestor", types.Var("y")),
       body: [gleamdb.p(#(types.Var("x"), "parent", types.Var("y")))]
     ),
     Rule(
-      name: "ancestor_recursive",
       head: #(types.Var("x"), "ancestor", types.Var("z")),
       body: [
         gleamdb.p(#(types.Var("x"), "parent", types.Var("y"))),

@@ -2,9 +2,11 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/erlang/process.{type Subject}
-import gleamdb/fact.{type AttributeConfig, type Fact}
+import gleam/otp/actor
+import gleam/otp/supervision
+import gleamdb/fact.{type AttributeConfig}
 import gleamdb/engine
-import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult}
+import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Subscribe}
 import gleamdb/transactor.{SetReactive}
 pub type Db = transactor.Db
 import gleamdb/reactive
@@ -12,18 +14,55 @@ import gleamdb/storage/mnesia
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/global
 
+pub type PullPattern = engine.PullPattern
+pub type PullResult = engine.PullResult
+pub type Fact = fact.Fact
+
 pub fn new() -> Db {
   new_with_adapter(None)
 }
 
 pub fn new_with_adapter(adapter: Option(StorageAdapter)) -> Db {
+  new_with_adapter_and_timeout(adapter, 1000)
+}
+
+pub fn start_link(
+  adapter: Option(StorageAdapter),
+  timeout_ms: Int,
+) -> Result(process.Subject(transactor.Message), actor.StartError) {
   let store = case adapter {
     Some(s) -> s
     None -> mnesia.adapter()
   }
-  let assert Ok(db) = transactor.start_link(store)
-  let assert Ok(react) = reactive.start_link()
-  process.send(db, SetReactive(react))
+  
+  case transactor.start_with_timeout(store, timeout_ms) {
+    Ok(db) -> {
+      let assert Ok(react) = reactive.start_link()
+      process.send(db, SetReactive(react))
+      Ok(db)
+    }
+    Error(e) -> Error(actor.InitFailed(e))
+  }
+}
+
+pub fn child_spec(
+  adapter: Option(StorageAdapter),
+  timeout_ms: Int,
+) -> supervision.ChildSpecification(process.Subject(transactor.Message)) {
+  supervision.worker(fn() {
+    start_link(adapter, timeout_ms)
+    |> result.map(fn(subject) {
+      let assert Ok(pid) = process.subject_owner(subject)
+      actor.Started(pid, subject)
+    })
+  })
+}
+
+pub fn new_with_adapter_and_timeout(
+  adapter: Option(StorageAdapter),
+  timeout_ms: Int,
+) -> Db {
+  let assert Ok(db) = start_link(adapter, timeout_ms)
   db
 }
 
@@ -58,6 +97,15 @@ pub fn set_schema(
   config: AttributeConfig,
 ) -> Result(Nil, String) {
   transactor.set_schema(db, attr, config)
+}
+
+pub fn set_schema_with_timeout(
+  db: Db,
+  attr: String,
+  config: AttributeConfig,
+  timeout: Int,
+) -> Result(Nil, String) {
+  transactor.set_schema_with_timeout(db, attr, config, timeout)
 }
 
 pub fn retract(db: Db, facts: List(Fact)) -> Result(DbState, String) {
@@ -115,12 +163,21 @@ pub fn subscribe(db: Db, query: List(BodyClause), subscriber: Subject(QueryResul
     }
   })
   
-  process.send(state.reactive_actor, coerce(reactive.Subscribe(query, attrs, subscriber)))
+  process.send(state.reactive_actor, Subscribe(query, attrs, subscriber))
 }
 
 pub fn p(clause: types.Clause) -> BodyClause {
   types.Positive(clause)
 }
 
-@external(erlang, "gleam_erl_ffi", "coerce")
-fn coerce(a: a) -> b
+pub fn pull_all() -> PullPattern {
+  [engine.Wildcard]
+}
+
+pub fn pull_attr(name: String) -> PullPattern {
+  [engine.Attr(name)]
+}
+
+pub fn pull_nested(name: String, pattern: PullPattern) -> PullPattern {
+  [engine.Nested(name, pattern)]
+}

@@ -54,6 +54,13 @@ The development followed seven distinct phases, each layering complexity only wh
     2.  **Configurable Timeouts:** Implemented `transact_with_timeout` to allow large batches to complete without crashing the calling process.
 *   **Result:** Stable ingestion of ~120k datoms/sec.
 
+### Phase 17: Developer Experience (Ergonomics)
+*   **The Problem:** Writing raw tuples for queries was error-prone, and manual supervision was tedious.
+*   **The Solution:**
+    1.  **Fluent DSL:** `gleamdb/q` provides a type-safe builder for `BodyClause` construction.
+    2.  **Standard OTP API:** `start_link` and `child_spec` allow `gleamdb` to sit naturally in a supervision tree.
+*   **Result:** A library that feels "native" to the Gleam ecosystem.
+
 ## Core Philosophy: What Would Rich Hickey Do?
 
 Throughout development, we asked: *Is the increased complexity worth the utility?*

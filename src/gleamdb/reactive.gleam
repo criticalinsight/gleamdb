@@ -3,23 +3,14 @@ import gleam/result
 import gleam/option.{None}
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
-import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult}
+import gleamdb/shared/types.{type BodyClause, type DbState, type ReactiveResult, type ReactiveMessage, Notify, Subscribe}
 import gleamdb/engine
-
-pub type Message {
-  Subscribe(
-    query: List(BodyClause),
-    attributes: List(String),
-    subscriber: Subject(QueryResult),
-  )
-  Notify(changed_attributes: List(String), current_state: DbState)
-}
 
 type ActiveQuery {
   ActiveQuery(
     query: List(BodyClause),
     attributes: List(String),
-    subscriber: Subject(QueryResult),
+    subscriber: Subject(ReactiveResult),
   )
 }
 
@@ -27,9 +18,9 @@ type State {
   State(queries: List(ActiveQuery))
 }
 
-pub fn start_link() -> Result(Subject(Message), actor.StartError) {
+pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
   actor.new(State(queries: []))
-  |> actor.on_message(fn(state: State, msg: Message) {
+  |> actor.on_message(fn(state: State, msg: ReactiveMessage) {
     case msg {
       Subscribe(query, attrs, sub) -> {
         let new_query = ActiveQuery(query, attrs, sub)

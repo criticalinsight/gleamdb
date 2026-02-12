@@ -1,5 +1,6 @@
 import gleam/dict.{type Dict}
 import gleam/list
+import gleam/result
 import gleamdb/fact.{type Datom, type Entity, type Attribute, type Value}
 
 pub type Index =
@@ -8,11 +9,18 @@ pub type Index =
 pub type AIndex =
   Dict(String, List(Datom))
 
+pub type AVIndex =
+  Dict(String, Dict(Value, Entity))
+
 pub fn new_index() -> Index {
   dict.new()
 }
 
 pub fn new_aindex() -> AIndex {
+  dict.new()
+}
+
+pub fn new_avindex() -> AVIndex {
   dict.new()
 }
 
@@ -24,6 +32,18 @@ pub fn insert_eavt(index: Index, datom: Datom) -> Index {
 pub fn insert_aevt(index: AIndex, datom: Datom) -> AIndex {
   let bucket = dict.get(index, datom.attribute) |> result_to_list
   dict.insert(index, datom.attribute, [datom, ..bucket])
+}
+
+pub fn insert_avet(index: AVIndex, datom: Datom) -> AVIndex {
+  let v_dict = dict.get(index, datom.attribute) |> result.unwrap(dict.new())
+  let new_v_dict = dict.insert(v_dict, datom.value, datom.entity)
+  dict.insert(index, datom.attribute, new_v_dict)
+}
+
+pub fn delete_avet(index: AVIndex, datom: Datom) -> AVIndex {
+  let v_dict = dict.get(index, datom.attribute) |> result.unwrap(dict.new())
+  let new_v_dict = dict.delete(v_dict, datom.value)
+  dict.insert(index, datom.attribute, new_v_dict)
 }
 
 fn result_to_list(res: Result(List(a), b)) -> List(a) {
@@ -72,4 +92,11 @@ pub fn get_all_datoms_for_attr(index: Index, attr: Attribute) -> List(Datom) {
   dict.values(index)
   |> list.flatten()
   |> list.filter(fn(d) { d.attribute == attr })
+}
+
+pub fn get_entity_by_av(index: AVIndex, attr: Attribute, val: Value) -> Result(Entity, Nil) {
+  case dict.get(index, attr) {
+    Ok(v_dict) -> dict.get(v_dict, val)
+    Error(_) -> Error(Nil)
+  }
 }

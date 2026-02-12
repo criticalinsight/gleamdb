@@ -32,18 +32,29 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 
 ## 🛠️ Usage
 
-### Installation
+### Installation & Supervision
 Add `gleamdb` to your `gleam.toml`:
 ```toml
 [dependencies]
 gleamdb = { path = "../gleamdb" }
 ```
 
+Add it to your supervision tree:
+```gleam
+import gleam/otp/supervision
+import gleamdb
+
+// inside your supervisor children list
+gleamdb.child_spec(None, 5000)
+```
+
 ### Basic Transaction
 ```gleam
 import gleamdb
+import gleamdb/fact.{Str}
 
-let db = gleamdb.new()
+let assert Ok(db) = gleamdb.new()
+
 let assert Ok(state) = gleamdb.transact(db, [
   #(fact.EntityId(101), "user/name", Str("Alice")),
   #(fact.EntityId(101), "user/role", Str("Admin"))
@@ -51,12 +62,17 @@ let assert Ok(state) = gleamdb.transact(db, [
 ```
 
 ### Datalog Query
+Use the fluent `q` DSL:
 ```gleam
-let results = gleamdb.query(db, [
-  schema.p(Var("e"), "user/role", Val(Str("Admin"))),
-  schema.p(Var("e"), "user/name", Var("name"))
-])
-// Returns list of bindings: [#("e", Int(101)), #("name", Str("Alice"))]
+import gleamdb/q
+
+let query = q.select(["name"])
+  |> q.where(q.v("e"), "user/role", q.s("Admin"))
+  |> q.where(q.v("e"), "user/name", q.v("name"))
+  |> q.to_clauses()
+
+let results = gleamdb.query(db, query)
+// Returns list of bindings: [#("name", Str("Alice"))]
 ```
 
 ## 📚 Documentation

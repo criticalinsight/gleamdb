@@ -1,9 +1,9 @@
 import gleam/dict
 import gleam/list
 import gleamdb
-import gleamdb/fact.{Int, Str, List}
+import gleamdb/fact.{Int, Str}
 import gleamdb/shared/types.{type DbState}
-import gleamdb/engine.{AllAttributes, Single}
+import gleamdb/engine.{Wildcard, Map, Single}
 import gleeunit
 import gleeunit/should
 import gleamdb/index
@@ -42,11 +42,13 @@ pub fn transaction_function_test() {
   
   // 3. Trigger transaction function
   // We use the special :db/fn marker in a Lookup Ref
+  // Using fact.List explicitly to avoid confusion with List type
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.Lookup(#("db/fn", Str("inc"))), "call", List([Int(1), Str("age"), Int(1)]))
+    #(fact.Lookup(#("db/fn", Str("inc"))), "call", fact.List([Int(1), Str("age"), Int(1)]))
   ])
   
   // 4. Verify result
-  let res = gleamdb.pull(db, fact.EntityId(1), AllAttributes)
-  should.equal(dict.get(res, "age"), Ok(Single(Int(31))))
+  let res = gleamdb.pull(db, fact.EntityId(1), [Wildcard])
+  let assert Map(d) = res
+  should.equal(dict.get(d, "age"), Ok(Single(Int(31))))
 }

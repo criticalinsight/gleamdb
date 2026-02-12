@@ -1,8 +1,7 @@
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
-import gleam/dynamic.{type Dynamic}
 import gleamdb/fact.{type AttributeConfig, type Datom, type DbFunction}
-import gleamdb/index.{type Index, type AIndex}
+import gleamdb/index.{type Index, type AIndex, type AVIndex}
 import gleamdb/storage.{type StorageAdapter}
 
 pub type DbState {
@@ -10,12 +9,13 @@ pub type DbState {
     adapter: StorageAdapter,
     eavt: Index,
     aevt: AIndex,
+    avet: AVIndex,
     latest_tx: Int,
     subscribers: List(Subject(List(Datom))),
     schema: Dict(String, AttributeConfig),
     functions: Dict(String, DbFunction(DbState)),
     composites: List(List(String)),
-    reactive_actor: Subject(Dynamic),
+    reactive_actor: Subject(ReactiveMessage),
   )
 }
 
@@ -46,3 +46,15 @@ pub type QueryResultItem =
 
 pub type QueryResult =
   List(QueryResultItem)
+
+pub type ReactiveResult =
+  QueryResult
+
+pub type ReactiveMessage {
+  Subscribe(
+    query: List(BodyClause),
+    attributes: List(String),
+    subscriber: Subject(ReactiveResult),
+  )
+  Notify(changed_attributes: List(String), current_state: DbState)
+}

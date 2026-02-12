@@ -47,10 +47,10 @@ pub fn large_recursion_benchmark_test() {
   let assert Ok(_) = gleamdb.transact(db, facts)
   
   let rules = [
-    Rule("anc", #(Var("A"), "ancestor", Var("B")), [
+    Rule(#(Var("A"), "ancestor", Var("B")), [
       gleamdb.p(#(Var("A"), "parent", Var("B")))
     ]),
-    Rule("anc_rec", #(Var("A"), "ancestor", Var("C")), [
+    Rule(#(Var("A"), "ancestor", Var("C")), [
       gleamdb.p(#(Var("A"), "parent", Var("B"))),
       gleamdb.p(#(Var("B"), "ancestor", Var("C")))
     ])

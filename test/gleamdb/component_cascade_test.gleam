@@ -35,8 +35,9 @@ pub fn component_cascade_test() {
   ])
   
   // 5. Verify Laptop/Mouse also gone from item/name index
-  let item_after = gleamdb.pull(db, fact.EntityId(2), engine.AllAttributes)
-  should.equal(dict.size(item_after), 0)
+  let item_after = gleamdb.pull(db, fact.EntityId(2), [engine.Wildcard])
+  let assert engine.Map(m) = item_after
+  should.equal(dict.size(m), 0)
   
   let results_after = gleamdb.query(db, [
     gleamdb.p(#(types.Var("i"), "item/name", types.Var("n")))

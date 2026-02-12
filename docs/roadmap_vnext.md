@@ -16,6 +16,15 @@ GleamDB has evolved from a simple triple-store into a robust de-complected infor
 - **Problem**: To see changes, you must query.
 - **Hickey Solution**: Incremental view maintenance. Consumers subscribe to a *Query*, and receive *Deltas* as transactions occur.
 
+### 4. Developer Experience & Supervision (Phase 17)
+- **Problem**: `gleamdb` is hard to supervise, queries are verbose, and types leak.
+- **Hickey Solution**:
+    - **Supervisor-First API**: Expose standard `child_spec` / `start_link`.
+    - **Fluent Query DSL**: `q.select(...) |> q.where(...)`.
+    - **Public Types**: Re-export core types for ergonomic use.
+    - **Reactive Bindings**: Formalize `ReactiveResult` as a first-class citizen.
+    - **Type-Safe IDs**: Re-introduce a lightweight wrapper for IDs.
+
 ---
 
 ## The Next PRD: Phase 15 - Vector Sovereignty
@@ -25,5 +34,14 @@ GleamDB has evolved from a simple triple-store into a robust de-complected infor
 | **fact.Vector** | New value type for float arrays. | Planned |
 | **Similarity Query** | `q([p(#(e, "embedding", v)), similarity(v, [0.1, 0.2], 0.8)])` | Planned |
 | **SQLite vec0** | Leveraging specialized FFI for vector math. | Planned |
+
+## The Next PRD: Phase 17 - Developer Experience
+| Feature | Description | Status |
+| :--- | :--- | :--- |
+| **Supervisor API** | `gleamdb.child_spec` for OTP trees. | Completed |
+| **Query DSL** | Fluent builder for clauses. | Completed |
+| **Public Types** | Ergonomic exports for end-users. | Completed |
+| **Reactive Bindings** | Formalized result types for subscriptions. | Completed |
+| **Type-Safe IDs** | Wrapper types for Entity IDs. | Completed |
 
 RichHickey = "🧙🏾‍♂️: Your data has shape. Your data has history. Now, your data must have direction. A vector is just a fact with a compass."
