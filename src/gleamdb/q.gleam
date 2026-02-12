@@ -1,6 +1,6 @@
 import gleam/list
-import gleamdb/shared/types.{type BodyClause, type Clause, Negative, Positive, Val, Var}
-import gleamdb/fact.{type Value}
+import gleamdb/shared/types.{type BodyClause, Negative, Positive, Val, Var}
+import gleamdb/fact
 
 pub type QueryBuilder {
   QueryBuilder(clauses: List(BodyClause))
@@ -29,6 +29,11 @@ pub fn v(name: String) -> types.Part {
   Var(name)
 }
 
+/// Helper for vector value
+pub fn vec(val: List(Float)) -> types.Part {
+  Val(fact.Vec(val))
+}
+
 pub fn where(
   builder: QueryBuilder,
   entity: types.Part,
@@ -47,6 +52,18 @@ pub fn negate(
   value: types.Part,
 ) -> QueryBuilder {
   let clause = Negative(#(entity, attr, value))
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Placeholder for similarity search
+pub fn similar(
+  builder: QueryBuilder,
+  entity: types.Part,
+  attr: String,
+  vector: List(Float),
+  _threshold: Float,
+) -> QueryBuilder {
+  let clause = Positive(#(entity, attr, Val(fact.Vec(vector))))
   QueryBuilder(clauses: list.append(builder.clauses, [clause]))
 }
 

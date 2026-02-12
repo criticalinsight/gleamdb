@@ -1,47 +1,79 @@
-import gleam/dict
-import gleeunit/should
+import gleam/option.{None}
 import gleam/erlang/process
-import gleamdb.{p}
+import gleam/io
+import gleam/list
+import gleeunit
+import gleeunit/should
+import gleamdb
+import gleamdb/q
 import gleamdb/fact
-import gleamdb/shared/types
+import gleamdb/shared/types.{Delta, Initial}
 
-pub fn reactive_sovereignty_test() {
-  let db = gleamdb.new()
-  let self = process.new_subject()
+pub fn main() {
+  gleeunit.main()
+}
+
+pub fn reactive_delta_test() {
+  let db = gleamdb.new_with_adapter_and_timeout(None, 1000)
   
-  // 1. Setup Schema
-  let assert Ok(_) = gleamdb.set_schema(db, "ticker/price", fact.AttributeConfig(unique: False, component: False))
-  
-  // 2. Subscribe to price updates
-  let q = [p(#(types.Var("e"), "ticker/price", types.Var("price")))]
-  gleamdb.subscribe(db, q, self)
-  
-  // 3. Transact a price (should trigger update)
+  // 1. Setup Data
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "ticker/price", fact.Int(100))
+    #(fact.EntityId(1), "chat/id", fact.Int(100)),
+    #(fact.EntityId(1), "chat/msg", fact.Str("Hello"))
   ])
   
-  // 4. Assert update received
-  let results = process.receive(self, 1000)
-  case results {
-    Ok(res_list) -> {
-      let assert [res] = res_list
-      should.equal(dict.get(res, "price"), Ok(fact.Int(100)))
+  // 2. Subscribe
+  let query = q.select(["msg"])
+    |> q.where(q.v("e"), "chat/id", q.i(100))
+    |> q.where(q.v("e"), "chat/msg", q.v("msg"))
+    |> q.to_clauses()
+    
+  let subject = process.new_subject()
+  gleamdb.subscribe(db, query, subject)
+  
+  // 3. Assert Initial State
+  let assert Ok(msg) = process.receive(subject, 1000)
+  case msg {
+    Initial(results) -> {
+      should.equal(list.length(results), 1)
     }
-    _ -> panic as "No reactive update received"
+    _ -> should.fail()
   }
   
-  // 5. Transact another update
+  // 4. Transact New Item
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "ticker/price", fact.Int(105))
+    #(fact.EntityId(2), "chat/id", fact.Int(100)),
+    #(fact.EntityId(2), "chat/msg", fact.Str("World"))
   ])
   
-  let results_2 = process.receive(self, 1000)
-  case results_2 {
-    Ok(res_list) -> {
-      let assert [res] = res_list
-      should.equal(dict.get(res, "price"), Ok(fact.Int(105)))
+  // 5. Assert Delta (Added)
+  let assert Ok(msg2) = process.receive(subject, 1000)
+  case msg2 {
+    Delta(added, removed) -> {
+      should.equal(list.length(added), 1)
+      should.equal(list.length(removed), 0)
+      io.println("Received Delta Added")
     }
-    _ -> panic as "No second reactive update received"
+    _ -> should.fail()
+  }
+  
+  // 6. Retract Item
+  // Note: Retract by entity ID or value?
+  // We'll use retract API if available, or just use fact-based retraction if implemented?
+  // GleamDB doesn't have `retract_entity` helper exposed yet?
+  // `gleamdb.retract` takes List(Fact).
+  let assert Ok(_) = gleamdb.retract(db, [
+    #(fact.EntityId(2), "chat/msg", fact.Str("World"))
+  ])
+  
+  // 7. Assert Delta (Removed)
+  let assert Ok(msg3) = process.receive(subject, 1000)
+  case msg3 {
+    Delta(added, removed) -> {
+      should.equal(list.length(added), 0)
+      should.equal(list.length(removed), 1)
+      io.println("Received Delta Removed")
+    }
+    _ -> should.fail()
   }
 }

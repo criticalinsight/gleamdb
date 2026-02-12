@@ -50,11 +50,17 @@ pub type QueryResult =
 pub type ReactiveResult =
   QueryResult
 
+pub type ReactiveDelta {
+  Initial(QueryResult)
+  Delta(added: QueryResult, removed: QueryResult)
+}
+
 pub type ReactiveMessage {
   Subscribe(
     query: List(BodyClause),
     attributes: List(String),
-    subscriber: Subject(ReactiveResult),
+    subscriber: Subject(ReactiveDelta),
+    initial_state: QueryResult,
   )
   Notify(changed_attributes: List(String), current_state: DbState)
 }

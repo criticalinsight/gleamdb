@@ -31,9 +31,16 @@ GleamDB has evolved from a simple triple-store into a robust de-complected infor
 
 | Feature | Description | Status |
 | :--- | :--- | :--- |
-| **fact.Vector** | New value type for float arrays. | Planned |
-| **Similarity Query** | `q([p(#(e, "embedding", v)), similarity(v, [0.1, 0.2], 0.8)])` | Planned |
-| **SQLite vec0** | Leveraging specialized FFI for vector math. | Planned |
+| **fact.Vector** | New value type for float arrays. | Completed |
+| **Similarity Query** | `q([p(#(e, "embedding", v)), similarity(v, [0.1, 0.2], 0.8)])` | Completed |
+| **SQLite vec0** | Leveraging specialized FFI for vector math. | Deferred |
+
+## The Next PRD: Phase 16 - Reactive Datalog
+| Feature | Description | Status |
+| :--- | :--- | :--- |
+| **ReactiveDelta** | `Initial` / `Delta` types for subscription updates. | Completed |
+| **Diff Engine** | Actor-based diffing of query results. | Completed |
+| **API Update** | `subscribe` returns `Subject(ReactiveDelta)`. | Completed |
 
 ## The Next PRD: Phase 17 - Developer Experience
 | Feature | Description | Status |

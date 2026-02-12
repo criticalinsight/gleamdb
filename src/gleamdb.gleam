@@ -6,7 +6,7 @@ import gleam/otp/actor
 import gleam/otp/supervision
 import gleamdb/fact.{type AttributeConfig}
 import gleamdb/engine
-import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Subscribe}
+import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, type ReactiveDelta, Initial, Subscribe}
 import gleamdb/transactor.{SetReactive}
 pub type Db = transactor.Db
 import gleamdb/reactive
@@ -35,14 +35,12 @@ pub fn start_link(
     None -> mnesia.adapter()
   }
   
-  case transactor.start_with_timeout(store, timeout_ms) {
-    Ok(db) -> {
-      let assert Ok(react) = reactive.start_link()
-      process.send(db, SetReactive(react))
-      Ok(db)
-    }
-    Error(e) -> Error(actor.InitFailed(e))
-  }
+  transactor.start_with_timeout(store, timeout_ms)
+  |> result.map(fn(db) {
+    let assert Ok(react) = reactive.start_link()
+    process.send(db, SetReactive(react))
+    db
+  })
 }
 
 pub fn child_spec(
@@ -145,14 +143,19 @@ pub fn as_of(db: Db, tx: Int, clauses: List(BodyClause)) -> QueryResult {
 
 pub fn pull(db: Db, eid: fact.Eid, pattern: engine.PullPattern) -> engine.PullResult {
   let state = transactor.get_state(db)
-  let assert fact.EntityId(id) = eid
-  engine.pull(state, fact.EntityId(id), pattern)
+  engine.pull(state, eid, pattern)
 }
 
-pub fn subscribe(db: Db, query: List(BodyClause), subscriber: Subject(QueryResult)) -> Nil {
+pub fn subscribe(db: Db, query: List(BodyClause), subscriber: Subject(ReactiveDelta)) -> Nil {
   let state = transactor.get_state(db)
   
-  // Extract attributes from query to optimize notifications
+  // 1. Run Initial Query
+  let initial_results = engine.run(state, query, [], None)
+  
+  // 2. Send Initial to Subscriber
+  process.send(subscriber, Initial(initial_results))
+  
+  // 3. Extract attributes
   let attrs = list.filter_map(query, fn(q) {
     case q {
       types.Positive(clause) | types.Negative(clause) -> {
@@ -163,7 +166,8 @@ pub fn subscribe(db: Db, query: List(BodyClause), subscriber: Subject(QueryResul
     }
   })
   
-  process.send(state.reactive_actor, Subscribe(query, attrs, subscriber))
+  // 4. Register with Reactive Actor (providing initial state for diffing)
+  process.send(state.reactive_actor, Subscribe(query, attrs, subscriber, initial_results))
 }
 
 pub fn p(clause: types.Clause) -> BodyClause {

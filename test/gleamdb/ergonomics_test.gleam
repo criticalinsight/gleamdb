@@ -1,4 +1,3 @@
-import gleam/otp/supervision
 import gleam/io
 import gleam/option.{None}
 import gleeunit
