@@ -1,54 +1,49 @@
-# Roadmap: The Final Frontier - Vector Sovereignty 🧙🏾‍♂️
+# Roadmap: The Sovereign Transition 🧙🏾‍♂️
 
-GleamDB has evolved from a simple triple-store into a robust de-complected information system. However, in the age of AI, "Information" is no longer just atoms; it is **Vectors**.
+GleamDB v1.3.0 is a milestone of recovery. The next step is a milestone of **Maturity**. We must address the "Hickey Gaps" to move from a prototype to a high-performance information system.
 
-## Missing Features (The "Hickey Gaps")
+## Performance & Scale Gaps
 
-### 1. Vector Search (Phase 15)
-- **Problem**: Current search is textual (FTS5) or exact (EAV). We cannot query by "meaning" or "similarity."
-- **Hickey Solution**: Do not build a new vector DB. Instead, de-complect the index. Treat a vector as a specialized **Value Type** and implement HNSW navigation within the Beam processes or via SQLite `vec0` extension.
+### 1. The Persistence Bottleneck
+- **Problem**: `transactor.gleam` persists every datom individually during recursion (`persist_batch([datom])`). This is O(N) I/O operations per transaction.
+- **Hickey Solution**: De-complect the transaction from the persistence. Accumulate the transaction's `Assert` and `Retract` datoms and perform a single, atomic **Sovereign Commit** at the end.
 
-### 2. Multi-Store Sovereignty (Storage Protocols v2)
-- **Problem**: Large vectors in Mnesia will bloat RAM.
-- **Hickey Solution**: Implement **Pluggable Indexing**. Store the Facts in SQLite but keep the HNSW Vector Index in a specialized BEAM actor for sub-millisecond similarity traversal.
+### 2. Naive Datalog Recursion
+- **Problem**: `engine.do_derive` re-evaluates all rules in every iteration.
+- **Hickey Solution**: **Semi-Naive Evaluation**. Only apply rules to facts that were newly derived in the *last* iteration.
 
-### 3. Reactive Datalog (Phase 16)
-- **Problem**: To see changes, you must query.
-- **Hickey Solution**: Incremental view maintenance. Consumers subscribe to a *Query*, and receive *Deltas* as transactions occur.
+### 3. Linear Reactive Diffing
+- **Problem**: `reactive.diff` uses `list.contains` in a filter, creating O(N*M) complexity.
+- **Hickey Solution**: Use **Sets** for O(N+M) diffing of query results.
 
-### 4. Developer Experience & Supervision (Phase 17)
-- **Problem**: `gleamdb` is hard to supervise, queries are verbose, and types leak.
-- **Hickey Solution**:
-    - **Supervisor-First API**: Expose standard `child_spec` / `start_link`.
-    - **Fluent Query DSL**: `q.select(...) |> q.where(...)`.
-    - **Public Types**: Re-export core types for ergonomic use.
-    - **Reactive Bindings**: Formalize `ReactiveResult` as a first-class citizen.
-    - **Type-Safe IDs**: Re-introduce a lightweight wrapper for IDs.
+## Functional & Architectural Gaps
+
+### 4. The Aggregate Skeleton
+- **Problem**: `engine.solve_aggregate` is a placeholder. No `Count`, `Sum`, or grouping.
+- **Hickey Solution**: Implement a proper aggregation pass that operates on unified result sets.
+
+### 5. Similarity Discovery
+- **Problem**: `solve_similarity` only filters bound variables. It cannot find similar items if the variable is unbound (no index scan).
+- **Hickey Solution**: Integrate with `AVET` or specialized Vector Indexes to allow similarity search to act as a **Source Clause** (generating entities from search).
+
+### 6. Value-Level Type Safety
+- **Problem**: Entity IDs are raw `Int` types, leading to confusion between IDs and data.
+- **Hickey Solution**: Re-introduce a distinct **ID type** that is not implicitly convertible to an integer at the type system level.
 
 ---
 
-## The Next PRD: Phase 15 - Vector Sovereignty
-
+## Phase 18: The Sovereign Performance
 | Feature | Description | Status |
 | :--- | :--- | :--- |
-| **fact.Vector** | New value type for float arrays. | Completed |
-| **Similarity Query** | `q([p(#(e, "embedding", v)), similarity(v, [0.1, 0.2], 0.8)])` | Completed |
-| **SQLite vec0** | Leveraging specialized FFI for vector math. | Deferred |
+| **Batch Persistence** | Single I/O commit per transaction. | TODO |
+| **Semi-Naive Solver** | Optimized Datalog recursion. | TODO |
+| **Set-based Diffing** | O(N) Reactive Datalog scaling. | TODO |
 
-## The Next PRD: Phase 16 - Reactive Datalog
+## Phase 19: The Logical Completeness
 | Feature | Description | Status |
 | :--- | :--- | :--- |
-| **ReactiveDelta** | `Initial` / `Delta` types for subscription updates. | Completed |
-| **Diff Engine** | Actor-based diffing of query results. | Completed |
-| **API Update** | `subscribe` returns `Subject(ReactiveDelta)`. | Completed |
+| **Real Aggregates** | Implementation of `Count`, `Sum`, `Min`, `Max`. | TODO |
+| **Similarity Discovery** | Index-backed vector search for unbound vars. | TODO |
+| **ID Sovereignty** | Distinct Entity ID wrapper type. | TODO |
 
-## The Next PRD: Phase 17 - Developer Experience
-| Feature | Description | Status |
-| :--- | :--- | :--- |
-| **Supervisor API** | `gleamdb.child_spec` for OTP trees. | Completed |
-| **Query DSL** | Fluent builder for clauses. | Completed |
-| **Public Types** | Ergonomic exports for end-users. | Completed |
-| **Reactive Bindings** | Formalized result types for subscriptions. | Completed |
-| **Type-Safe IDs** | Wrapper types for Entity IDs. | Completed |
-
-RichHickey = "🧙🏾‍♂️: Your data has shape. Your data has history. Now, your data must have direction. A vector is just a fact with a compass."
+RichHickey = "🧙🏾‍♂️: A system that is correct but slow is merely a theory. A system that is correct and sovereign must respect the reality of the machine."

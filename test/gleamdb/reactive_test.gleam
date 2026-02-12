@@ -18,8 +18,8 @@ pub fn reactive_delta_test() {
   
   // 1. Setup Data
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "chat/id", fact.Int(100)),
-    #(fact.EntityId(1), "chat/msg", fact.Str("Hello"))
+    #(fact.Uid(fact.EntityId(1)), "chat/id", fact.Int(100)),
+    #(fact.Uid(fact.EntityId(1)), "chat/msg", fact.Str("Hello"))
   ])
   
   // 2. Subscribe
@@ -42,8 +42,8 @@ pub fn reactive_delta_test() {
   
   // 4. Transact New Item
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(2), "chat/id", fact.Int(100)),
-    #(fact.EntityId(2), "chat/msg", fact.Str("World"))
+    #(fact.Uid(fact.EntityId(2)), "chat/id", fact.Int(100)),
+    #(fact.Uid(fact.EntityId(2)), "chat/msg", fact.Str("World"))
   ])
   
   // 5. Assert Delta (Added)
@@ -63,7 +63,7 @@ pub fn reactive_delta_test() {
   // GleamDB doesn't have `retract_entity` helper exposed yet?
   // `gleamdb.retract` takes List(Fact).
   let assert Ok(_) = gleamdb.retract(db, [
-    #(fact.EntityId(2), "chat/msg", fact.Str("World"))
+    #(fact.Uid(fact.EntityId(2)), "chat/msg", fact.Str("World"))
   ])
   
   // 7. Assert Delta (Removed)

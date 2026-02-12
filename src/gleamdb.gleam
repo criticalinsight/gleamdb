@@ -1,187 +1,178 @@
-import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
-import gleam/otp/supervision
-import gleamdb/fact.{type AttributeConfig}
+import gleam/result
+import gleam/list
+import gleamdb/transactor
 import gleamdb/engine
-import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, type ReactiveDelta, Initial, Subscribe}
-import gleamdb/transactor.{SetReactive}
-pub type Db = transactor.Db
-import gleamdb/reactive
-import gleamdb/storage/mnesia
+import gleamdb/fact.{type AttributeConfig, type Fact}
+import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Positive, Subscribe, Initial}
+import gleamdb/index
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/global
+import gleamdb/process_extra
 
-pub type PullPattern = engine.PullPattern
+pub type Db = transactor.Db
 pub type PullResult = engine.PullResult
-pub type Fact = fact.Fact
+pub type PullPattern = engine.PullPattern
 
 pub fn new() -> Db {
   new_with_adapter(None)
 }
 
 pub fn new_with_adapter(adapter: Option(StorageAdapter)) -> Db {
-  new_with_adapter_and_timeout(adapter, 1000)
+  new_with_adapter_and_timeout(adapter, 5000)
+}
+
+pub fn new_with_adapter_and_timeout(adapter: Option(StorageAdapter), timeout_ms: Int) -> Db {
+  let assert Ok(db) = start_link(adapter, timeout_ms)
+  db
 }
 
 pub fn start_link(
   adapter: Option(StorageAdapter),
   timeout_ms: Int,
-) -> Result(process.Subject(transactor.Message), actor.StartError) {
+) -> Result(Subject(transactor.Message), actor.StartError) {
   let store = case adapter {
     Some(s) -> s
-    None -> mnesia.adapter()
+    None -> storage.ephemeral()
   }
   
   transactor.start_with_timeout(store, timeout_ms)
-  |> result.map(fn(db) {
-    let assert Ok(react) = reactive.start_link()
-    process.send(db, SetReactive(react))
-    db
-  })
 }
 
-pub fn child_spec(
+pub fn start_named(
+  name: String,
   adapter: Option(StorageAdapter),
-  timeout_ms: Int,
-) -> supervision.ChildSpecification(process.Subject(transactor.Message)) {
-  supervision.worker(fn() {
-    start_link(adapter, timeout_ms)
-    |> result.map(fn(subject) {
-      let assert Ok(pid) = process.subject_owner(subject)
-      actor.Started(pid, subject)
-    })
-  })
+) -> Result(Subject(transactor.Message), actor.StartError) {
+  let store = case adapter {
+    Some(s) -> s
+    None -> storage.ephemeral()
+  }
+  transactor.start_named(name, store)
 }
 
-pub fn new_with_adapter_and_timeout(
+pub fn start_distributed(
+  name: String,
   adapter: Option(StorageAdapter),
-  timeout_ms: Int,
-) -> Db {
-  let assert Ok(db) = start_link(adapter, timeout_ms)
-  db
+) -> Result(Subject(transactor.Message), actor.StartError) {
+  let store = case adapter {
+    Some(s) -> s
+    None -> storage.ephemeral()
+  }
+  transactor.start_distributed(name, store)
 }
 
-pub fn register(db: Db, name: String) -> Result(Nil, Nil) {
-  process.subject_owner(db)
-  |> result.try(fn(pid) { global.register(name, pid) })
+pub fn connect(name: String) -> Result(Db, String) {
+  case global.whereis("gleamdb_" <> name) {
+    Ok(pid) -> Ok(process_extra.pid_to_subject(pid))
+    Error(_) -> Error("Could not find database named " <> name)
+  }
 }
-
-pub fn connect(name: String) -> Result(Db, Nil) {
-  global.whereis(name)
-  |> result.map(fn(pid) { cast_pid_to_subject(pid) })
-}
-
-@external(erlang, "gleam_erlang_ffi", "from_pid")
-fn cast_pid_to_subject(pid: process.Pid) -> process.Subject(a)
 
 pub fn transact(db: Db, facts: List(Fact)) -> Result(DbState, String) {
   transactor.transact(db, facts)
 }
 
-pub fn transact_with_timeout(
-  db: Db,
-  facts: List(Fact),
-  timeout: Int,
-) -> Result(DbState, String) {
-  transactor.transact_with_timeout(db, facts, timeout)
-}
-
-pub fn set_schema(
-  db: Db,
-  attr: String,
-  config: AttributeConfig,
-) -> Result(Nil, String) {
-  transactor.set_schema(db, attr, config)
-}
-
-pub fn set_schema_with_timeout(
-  db: Db,
-  attr: String,
-  config: AttributeConfig,
-  timeout: Int,
-) -> Result(Nil, String) {
-  transactor.set_schema_with_timeout(db, attr, config, timeout)
+pub fn transact_with_timeout(db: Db, facts: List(Fact), timeout_ms: Int) -> Result(DbState, String) {
+  transactor.transact_with_timeout(db, facts, timeout_ms)
 }
 
 pub fn retract(db: Db, facts: List(Fact)) -> Result(DbState, String) {
   transactor.retract(db, facts)
 }
 
-pub fn register_function(
-  db: Db,
-  name: String,
-  func: fact.DbFunction(DbState),
-) -> Nil {
-  process.send(db, transactor.RegisterFunction(name, func, process.new_subject()))
+pub fn set_schema(db: Db, attr: String, config: AttributeConfig) -> Result(Nil, String) {
+  transactor.set_schema(db, attr, config)
 }
 
-pub fn register_composite(db: Db, attrs: List(String)) -> Nil {
-  process.send(db, transactor.RegisterComposite(attrs, process.new_subject()))
+pub fn set_schema_with_timeout(db: Db, attr: String, config: AttributeConfig, timeout_ms: Int) -> Result(Nil, String) {
+  transactor.set_schema_with_timeout(db, attr, config, timeout_ms)
 }
 
-pub fn query(db: Db, clauses: List(BodyClause)) -> QueryResult {
+pub fn history(db: Db, eid: fact.Eid) -> List(fact.Datom) {
   let state = transactor.get_state(db)
-  engine.run(state, clauses, [], None)
-}
-
-pub fn query_with_rules(
-  db: Db,
-  clauses: List(BodyClause),
-  rules: List(engine.Rule),
-) -> QueryResult {
-  let state = transactor.get_state(db)
-  engine.run(state, clauses, rules, None)
-}
-
-pub fn as_of(db: Db, tx: Int, clauses: List(BodyClause)) -> QueryResult {
-  let state = transactor.get_state(db)
-  engine.run(state, clauses, [], Some(tx))
-}
-
-pub fn pull(db: Db, eid: fact.Eid, pattern: engine.PullPattern) -> engine.PullResult {
-  let state = transactor.get_state(db)
-  engine.pull(state, eid, pattern)
-}
-
-pub fn subscribe(db: Db, query: List(BodyClause), subscriber: Subject(ReactiveDelta)) -> Nil {
-  let state = transactor.get_state(db)
-  
-  // 1. Run Initial Query
-  let initial_results = engine.run(state, query, [], None)
-  
-  // 2. Send Initial to Subscriber
-  process.send(subscriber, Initial(initial_results))
-  
-  // 3. Extract attributes
-  let attrs = list.filter_map(query, fn(q) {
-    case q {
-      types.Positive(clause) | types.Negative(clause) -> {
-        let #(_, a, _) = clause
-        Ok(a)
-      }
-      _ -> Error(Nil)
+  let id = case eid {
+    fact.Uid(i) -> i
+    fact.Lookup(#(a, v)) -> {
+      index.get_entity_by_av(state.avet, a, v) |> result.unwrap(fact.EntityId(0))
     }
-  })
-  
-  // 4. Register with Reactive Actor (providing initial state for diffing)
-  process.send(state.reactive_actor, Subscribe(query, attrs, subscriber, initial_results))
+  }
+  engine.entity_history(state, id)
 }
 
-pub fn p(clause: types.Clause) -> BodyClause {
-  types.Positive(clause)
+pub fn pull(
+  db: Db,
+  eid: fact.Eid,
+  pattern: PullPattern,
+) -> engine.PullResult {
+  let state = transactor.get_state(db)
+  let id = case eid {
+    fact.Uid(i) -> i
+    fact.Lookup(#(a, v)) -> {
+       index.get_entity_by_av(state.avet, a, v) |> result.unwrap(fact.EntityId(0))
+    }
+  }
+  engine.pull(state, fact.Uid(id), pattern)
 }
 
 pub fn pull_all() -> PullPattern {
   [engine.Wildcard]
 }
 
-pub fn pull_attr(name: String) -> PullPattern {
-  [engine.Attr(name)]
+pub fn pull_attr(attr: String) -> PullPattern {
+  [engine.Attr(attr)]
 }
 
-pub fn pull_nested(name: String, pattern: PullPattern) -> PullPattern {
-  [engine.Nested(name, pattern)]
+pub fn query(db: Db, q_clauses: List(BodyClause)) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, q_clauses, [], None)
+}
+
+pub fn query_with_rules(db: Db, q_clauses: List(BodyClause), rules: List(engine.Rule)) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, q_clauses, rules, None)
+}
+
+pub fn as_of(db: Db, tx: Int, q_clauses: List(BodyClause)) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, q_clauses, [], Some(tx))
+}
+
+pub fn p(triple: types.Clause) -> BodyClause {
+  Positive(triple)
+}
+
+pub fn register_function(
+  db: Db,
+  name: String,
+  func: fact.DbFunction(types.DbState),
+) -> Nil {
+  transactor.register_function(db, name, func)
+}
+
+pub fn register_composite(db: Db, attrs: List(String)) -> Nil {
+  transactor.register_composite(db, attrs)
+}
+
+pub fn subscribe(
+  db: Db,
+  query: List(BodyClause),
+  subscriber: Subject(types.ReactiveDelta),
+) -> Nil {
+  let state = transactor.get_state(db)
+  let results = engine.run(state, query, [], None)
+  
+  let attrs = list.filter_map(query, fn(c) {
+    case c {
+      Positive(#(_, a, _)) -> Ok(a)
+      types.Negative(#(_, a, _)) -> Ok(a)
+      _ -> Error(Nil)
+    }
+  })
+
+  let msg = Subscribe(query, attrs, subscriber, results)
+  process.send(state.reactive_actor, msg)
+  process.send(subscriber, types.Initial(results))
+  Nil
 }

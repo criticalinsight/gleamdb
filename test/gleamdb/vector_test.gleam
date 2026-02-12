@@ -16,7 +16,7 @@ pub fn vector_storage_test() {
   // 1. Transact a Vector
   let embedding = [0.1, 0.2, 0.3]
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "user/embedding", fact.Vec(embedding))
+    #(fact.Uid(fact.EntityId(1)), "user/embedding", fact.Vec(embedding))
   ])
   
   // 2. Retrieve it via standard query
@@ -37,7 +37,7 @@ pub fn vector_storage_test() {
   should.equal(sim2, 1.0)
   
   // 4. Test Pull
-  let _res = gleamdb.pull(db, fact.EntityId(1), gleamdb.pull_attr("user/embedding"))
+  let _res = gleamdb.pull(db, fact.Uid(fact.EntityId(1)), gleamdb.pull_attr("user/embedding"))
   
   should.be_true(True)
 }

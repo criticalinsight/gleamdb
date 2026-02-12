@@ -14,10 +14,10 @@ pub fn negation_test() {
   let db = gleamdb.new()
   
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "name", fact.Str("Alice")),
-    #(fact.EntityId(2), "name", fact.Str("Bob")),
-    #(fact.EntityId(3), "name", fact.Str("Charlie")),
-    #(fact.EntityId(1), "parent", Int(2)),
+    #(fact.Uid(fact.EntityId(1)), "name", fact.Str("Alice")),
+    #(fact.Uid(fact.EntityId(2)), "name", fact.Str("Bob")),
+    #(fact.Uid(fact.EntityId(3)), "name", fact.Str("Charlie")),
+    #(fact.Uid(fact.EntityId(1)), "parent", Int(2)),
   ])
   
   let result = gleamdb.query(db, [
@@ -32,5 +32,82 @@ pub fn negation_test() {
 }
 
 pub fn aggregation_test() {
-  should.be_true(True)
+  let db = gleamdb.new()
+  
+  // Setup data for aggregation
+  let assert Ok(_) = gleamdb.transact(db, [
+    #(fact.Uid(fact.EntityId(1)), "user/age", fact.Int(25)),
+    #(fact.Uid(fact.EntityId(2)), "user/age", fact.Int(35)),
+    #(fact.Uid(fact.EntityId(3)), "user/age", fact.Int(45))
+  ])
+  
+  // 1. Count
+  let res_count = gleamdb.query(db, [
+    types.Aggregate("total", types.Count, "e", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ])
+  ])
+  let assert Ok(row) = list.first(res_count)
+  should.equal(dict.get(row, "total"), Ok(fact.Int(3)))
+  
+  // 2. Sum
+  let res_sum = gleamdb.query(db, [
+    types.Aggregate("sum_age", types.Sum, "a", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ])
+  ])
+  let assert Ok(row2) = list.first(res_sum)
+  should.equal(dict.get(row2, "sum_age"), Ok(fact.Float(105.0)))
+  
+  // 3. Min/Max
+  let res_min_max = gleamdb.query(db, [
+    types.Aggregate("min_age", types.Min, "a", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ]),
+    types.Aggregate("max_age", types.Max, "a", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ])
+  ])
+  let assert Ok(row3) = list.first(res_min_max)
+  should.equal(dict.get(row3, "min_age"), Ok(fact.Int(25)))
+  should.equal(dict.get(row3, "max_age"), Ok(fact.Int(45)))
+}
+
+pub fn advanced_aggregation_test() {
+  let db = gleamdb.new()
+  
+  // 1. Setup Data: Users with ages 20, 30, 40
+  let assert Ok(_) = gleamdb.transact(db, [
+    #(fact.Uid(fact.EntityId(1)), "user/age", fact.Int(20)),
+    #(fact.Uid(fact.EntityId(2)), "user/age", fact.Int(30)),
+    #(fact.Uid(fact.EntityId(3)), "user/age", fact.Int(40))
+  ])
+  
+  // 2. Avg Test
+  let res_avg = gleamdb.query(db, [
+    types.Aggregate("avg", types.Avg, "a", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ])
+  ])
+  should.equal(res_avg, [dict.from_list([#("avg", fact.Float(30.0))])])
+  
+  // 3. Median Test (Odd length)
+  let res_med_odd = gleamdb.query(db, [
+    types.Aggregate("med", types.Median, "a", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ])
+  ])
+  should.equal(res_med_odd, [dict.from_list([#("med", fact.Int(30))])])
+  
+  // 4. Median Test (Even length): Add age 32 -> [20, 30, 32, 40] -> Median = (30+32)/2 = 31.0
+  let assert Ok(_) = gleamdb.transact(db, [
+    #(fact.Uid(fact.EntityId(4)), "user/age", fact.Int(32))
+  ])
+  
+  let res_med_even = gleamdb.query(db, [
+    types.Aggregate("med", types.Median, "a", [
+      gleamdb.p(#(types.Var("e"), "user/age", types.Var("a")))
+    ])
+  ])
+  should.equal(res_med_even, [dict.from_list([#("med", fact.Float(31.0))])])
 }

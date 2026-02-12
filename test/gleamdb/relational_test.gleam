@@ -15,9 +15,9 @@ pub fn join_test() {
   
   // Alice is 30, and Alice lives in Nairobi
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "name", Str("Alice")),
-    #(fact.EntityId(1), "age", Int(30)),
-    #(fact.EntityId(1), "location", Str("Nairobi")),
+    #(fact.Uid(fact.EntityId(1)), "name", Str("Alice")),
+    #(fact.Uid(fact.EntityId(1)), "age", Int(30)),
+    #(fact.Uid(fact.EntityId(1)), "location", Str("Nairobi")),
   ])
 
   // Query: Find entity e and age a where e has name "Alice" AND e has age a
@@ -35,14 +35,14 @@ pub fn join_test() {
 pub fn retraction_test() {
   let db = gleamdb.new()
   
-  let assert Ok(_) = gleamdb.transact(db, [#(fact.EntityId(1), "status", Str("active"))])
+  let assert Ok(_) = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(1)), "status", Str("active"))])
   
   // Verify it exists
   let res1 = gleamdb.query(db, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
   should.equal(res1, [dict.from_list([#("s", Str("active"))])])
 
   // Retract it
-  let assert Ok(_) = gleamdb.retract(db, [#(fact.EntityId(1), "status", Str("active"))])
+  let assert Ok(_) = gleamdb.retract(db, [#(fact.Uid(fact.EntityId(1)), "status", Str("active"))])
 
   // Verify it's gone
   let res2 = gleamdb.query(db, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])

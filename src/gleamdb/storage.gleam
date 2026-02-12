@@ -8,3 +8,11 @@ pub type StorageAdapter {
     recover: fn() -> Result(List(Datom), String),
   )
 }
+pub fn ephemeral() -> StorageAdapter {
+  StorageAdapter(
+    init: fn() { Nil },
+    persist: fn(_) { Nil },
+    persist_batch: fn(_) { Nil },
+    recover: fn() { Ok([]) },
+  )
+}

@@ -12,8 +12,8 @@ pub fn schema_guard_test() {
   
   // 1. Ingest duplicate data (initially valid, as attribute is not unique)
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "username", Str("Alice")),
-    #(fact.EntityId(2), "username", Str("Alice")), // Duplicate!
+    #(fact.Uid(fact.EntityId(1)), "username", Str("Alice")),
+    #(fact.Uid(fact.EntityId(2)), "username", Str("Alice")), // Duplicate!
   ])
   
   // 2. Attempt to make "username" unique (Should Fail)
@@ -22,7 +22,7 @@ pub fn schema_guard_test() {
   
   // 3. Retract duplicate
   let assert Ok(_) = gleamdb.retract(db, [
-    #(fact.EntityId(2), "username", Str("Alice"))
+    #(fact.Uid(fact.EntityId(2)), "username", Str("Alice"))
   ])
   
   // 4. Attempt to make "username" unique again (Should Succeed)

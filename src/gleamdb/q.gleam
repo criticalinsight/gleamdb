@@ -34,6 +34,7 @@ pub fn vec(val: List(Float)) -> types.Part {
   Val(fact.Vec(val))
 }
 
+/// Add a where clause (Entity, Attribute, Value).
 pub fn where(
   builder: QueryBuilder,
   entity: types.Part,
@@ -52,6 +53,42 @@ pub fn negate(
   value: types.Part,
 ) -> QueryBuilder {
   let clause = Negative(#(entity, attr, value))
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Count aggregate
+pub fn count(builder: QueryBuilder, into: String, target: String, filter: List(BodyClause)) -> QueryBuilder {
+  let clause = types.Aggregate(into, types.Count, target, filter)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Sum aggregate
+pub fn sum(builder: QueryBuilder, into: String, target: String, filter: List(BodyClause)) -> QueryBuilder {
+  let clause = types.Aggregate(into, types.Sum, target, filter)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Avg aggregate
+pub fn avg(builder: QueryBuilder, into: String, target: String, filter: List(BodyClause)) -> QueryBuilder {
+  let clause = types.Aggregate(into, types.Avg, target, filter)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Median aggregate
+pub fn median(builder: QueryBuilder, into: String, target: String, filter: List(BodyClause)) -> QueryBuilder {
+  let clause = types.Aggregate(into, types.Median, target, filter)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Min aggregate
+pub fn min(builder: QueryBuilder, into: String, target: String, filter: List(BodyClause)) -> QueryBuilder {
+  let clause = types.Aggregate(into, types.Min, target, filter)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Max aggregate
+pub fn max(builder: QueryBuilder, into: String, target: String, filter: List(BodyClause)) -> QueryBuilder {
+  let clause = types.Aggregate(into, types.Max, target, filter)
   QueryBuilder(clauses: list.append(builder.clauses, [clause]))
 }
 

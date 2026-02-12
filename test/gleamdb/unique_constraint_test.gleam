@@ -14,10 +14,10 @@ pub fn unique_constraint_test() {
   let assert Ok(_) = gleamdb.set_schema(db, "user/email", fact.AttributeConfig(unique: True, component: False))
   
   // First transaction: OK
-  let assert Ok(_) = gleamdb.transact(db, [#(fact.EntityId(1), "user/email", fact.Str("rich@hickey.com"))])
+  let assert Ok(_) = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(1)), "user/email", fact.Str("rich@hickey.com"))])
   
   // Second transaction with same email: Error
-  let result2 = gleamdb.transact(db, [#(fact.EntityId(2), "user/email", fact.Str("rich@hickey.com"))])
+  let result2 = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(2)), "user/email", fact.Str("rich@hickey.com"))])
   should.be_error(result2)
 }
 
@@ -27,7 +27,7 @@ pub fn non_unique_attribute_test() {
   // Tags are not unique
   let assert Ok(_) = gleamdb.set_schema(db, "tag", fact.AttributeConfig(unique: False, component: False))
   
-  let assert Ok(_) = gleamdb.transact(db, [#(fact.EntityId(1), "tag", fact.Str("clojure"))])
+  let assert Ok(_) = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(1)), "tag", fact.Str("clojure"))])
   
-  let assert Ok(_) = gleamdb.transact(db, [#(fact.EntityId(2), "tag", fact.Str("clojure"))])
+  let assert Ok(_) = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(2)), "tag", fact.Str("clojure"))])
 }

@@ -9,8 +9,8 @@ pub fn distribution_test() {
   
   // 1. Transaction on local db
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "name", fact.Str("Alice")),
-    #(fact.EntityId(1), "age", fact.Int(30))
+    #(fact.Uid(fact.EntityId(1)), "name", fact.Str("Alice")),
+    #(fact.Uid(fact.EntityId(1)), "age", fact.Int(30))
   ])
   
   // 2. Simple query

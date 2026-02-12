@@ -18,19 +18,18 @@ pub fn transaction_function_test() {
   // 1. Register an 'inc' function
   gleamdb.register_function(db, "inc", fn(state: DbState, args) {
     case args {
-      [Int(eid), Str(attr), Int(amount)] -> {
+      [Int(eid_int), Str(attr), Int(amount)] -> {
+        let eid = fact.EntityId(eid_int)
         // Find current value using the provided state
-        let datoms = index.filter_by_entity(state.eavt, eid)
+        let datoms = index.filter_by_entity(state.eavt, eid) |> list.filter(fn(d) { d.attribute == attr })
           
-        let current_val = list.fold(datoms, 0, fn(acc, d) {
-          case d.attribute == attr {
-            True -> case d.value { Int(v) -> v _ -> acc }
-            False -> acc
-          }
-        })
+        let current_val = case list.first(datoms) {
+          Ok(d) -> case d.value { Int(v) -> v _ -> 0 }
+          _ -> 0
+        }
         
         [
-          #(fact.EntityId(eid), attr, Int(current_val + amount))
+          #(fact.Uid(eid), attr, Int(current_val + amount))
         ]
       }
       _ -> []
@@ -38,17 +37,15 @@ pub fn transaction_function_test() {
   })
   
   // 2. Initial state
-  let assert Ok(_) = gleamdb.transact(db, [#(fact.EntityId(1), "age", Int(30))])
+  let assert Ok(_) = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(1)), "age", Int(30))])
   
   // 3. Trigger transaction function
-  // We use the special :db/fn marker in a Lookup Ref
-  // Using fact.List explicitly to avoid confusion with List type
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.Lookup(#("db/fn", Str("inc"))), "call", fact.List([Int(1), Str("age"), Int(1)]))
+    #(fact.Lookup(#("db/fn", Str("inc"))), "age", fact.List([Int(1), Str("age"), Int(1)]))
   ])
   
   // 4. Verify result
-  let res = gleamdb.pull(db, fact.EntityId(1), [Wildcard])
-  let assert Map(d) = res
-  should.equal(dict.get(d, "age"), Ok(Single(Int(31))))
+  let res = gleamdb.pull(db, fact.Uid(fact.EntityId(1)), [Wildcard])
+  let assert Map(m) = res
+  should.equal(dict.get(m, "age"), Ok(Single(Int(31))))
 }

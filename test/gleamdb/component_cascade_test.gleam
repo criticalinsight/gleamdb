@@ -15,10 +15,10 @@ pub fn component_cascade_test() {
   
   // 2. Create Order with Items
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "order/items", fact.Int(2)),
-    #(fact.EntityId(2), "item/name", fact.Str("Laptop")),
-    #(fact.EntityId(1), "order/items", fact.Int(3)),
-    #(fact.EntityId(3), "item/name", fact.Str("Mouse")),
+    #(fact.Uid(fact.EntityId(1)), "order/items", fact.Int(2)),
+    #(fact.Uid(fact.EntityId(2)), "item/name", fact.Str("Laptop")),
+    #(fact.Uid(fact.EntityId(1)), "order/items", fact.Int(3)),
+    #(fact.Uid(fact.EntityId(3)), "item/name", fact.Str("Mouse")),
   ])
   
   // 3. Verify existence
@@ -30,12 +30,12 @@ pub fn component_cascade_test() {
   
   // 4. Retract Order (should cascade to items)
   let assert Ok(_) = gleamdb.retract(db, [
-    #(fact.EntityId(1), "order/items", fact.Int(2)),
-    #(fact.EntityId(1), "order/items", fact.Int(3))
+    #(fact.Uid(fact.EntityId(1)), "order/items", fact.Int(2)),
+    #(fact.Uid(fact.EntityId(1)), "order/items", fact.Int(3))
   ])
   
   // 5. Verify Laptop/Mouse also gone from item/name index
-  let item_after = gleamdb.pull(db, fact.EntityId(2), [engine.Wildcard])
+  let item_after = gleamdb.pull(db, fact.Uid(fact.EntityId(2)), [engine.Wildcard])
   let assert engine.Map(m) = item_after
   should.equal(dict.size(m), 0)
   

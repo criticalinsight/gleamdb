@@ -17,8 +17,8 @@ pub fn recursive_ancestor_test() {
   
   // Facts: 1 parent 2, 2 parent 3 (1 -> 2 -> 3)
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "parent", Int(2)),
-    #(fact.EntityId(2), "parent", Int(3)),
+    #(fact.Uid(fact.EntityId(1)), "parent", Int(2)),
+    #(fact.Uid(fact.EntityId(2)), "parent", Int(3)),
   ])
 
   // Rules:

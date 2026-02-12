@@ -1,4 +1,16 @@
-pub type Entity = Int
+import gleam/string
+
+pub fn to_string(v: Value) -> String {
+  string.inspect(v)
+}
+
+pub type EntityId {
+  EntityId(Int)
+}
+
+pub type Entity =
+  EntityId
+
 pub type Attribute = String
 pub type Transaction = Int
 
@@ -8,13 +20,14 @@ pub type DbFunction(state) =
 pub type LookupRef = #(Attribute, Value)
 
 pub type Eid {
-  EntityId(Entity)
   Lookup(LookupRef)
+  Uid(EntityId)
 }
 
 pub type Value {
   Str(String)
   Int(Int)
+  Float(Float)
   Bool(Bool)
   List(List(Value))
   Vec(List(Float))

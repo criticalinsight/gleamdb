@@ -1,51 +1,56 @@
-import gleam/list
-import gleam/dict
-import gleam/option.{None}
-import gleam/erlang/process
 import gleeunit/should
+import gleam/option.{None}
+import gleam/dict
+import gleam/list
 import gleamdb/fact
-import gleamdb/engine
 import gleamdb/shared/types
-import gleamdb/index
-import gleamdb/storage/mnesia
+import gleamdb/engine
+import gleamdb/storage
+import gleamdb/reactive
 
 pub fn engine_run_test() {
-  let state = types.DbState(
-    adapter: mnesia.adapter(),
-    eavt: index.new_index(),
-    aevt: index.new_aindex(),
-    avet: index.new_avindex(),
-    latest_tx: 0,
-    subscribers: [],
-    schema: dict.new(),
-    functions: dict.new(),
-    composites: [],
-    reactive_actor: coerce(process.new_subject()),
-  )
-  let clauses = [
-    types.Positive(#(types.Var("e"), "name", types.Var("n")))
-  ]
-  let result = engine.run(state, clauses, [], None)
-  should.equal(list.length(result), 0)
+  let assert Ok(reactive_subject) = reactive.start_link()
+  let state =
+    types.DbState(
+      adapter: storage.ephemeral(),
+      eavt: dict.new(),
+      aevt: dict.new(),
+      avet: dict.new(),
+      latest_tx: 0,
+      subscribers: [],
+      schema: dict.new(),
+      functions: dict.new(),
+      composites: [],
+      reactive_actor: reactive_subject,
+      followers: [],
+      is_distributed: False,
+      ets_name: None,
+    )
+
+  let query = [types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice"))))]
+  let results = engine.run(state, query, [], None)
+  should.equal(list.length(results), 0)
 }
 
 pub fn pull_test() {
-  let state = types.DbState(
-    adapter: mnesia.adapter(),
-    eavt: index.new_index(),
-    aevt: index.new_aindex(),
-    avet: index.new_avindex(),
-    latest_tx: 0,
-    subscribers: [],
-    schema: dict.new(),
-    functions: dict.new(),
-    composites: [],
-    reactive_actor: coerce(process.new_subject()),
-  )
-  let res = engine.pull(state, fact.EntityId(1), [engine.Wildcard])
+  let assert Ok(reactive_subject) = reactive.start_link()
+  let state =
+    types.DbState(
+      adapter: storage.ephemeral(),
+      eavt: dict.new(),
+      aevt: dict.new(),
+      avet: dict.new(),
+      latest_tx: 0,
+      subscribers: [],
+      schema: dict.new(),
+      functions: dict.new(),
+      composites: [],
+      reactive_actor: reactive_subject,
+      followers: [],
+      is_distributed: False,
+      ets_name: None,
+    )
+  let res = engine.pull(state, fact.Uid(fact.EntityId(1)), [engine.Wildcard])
   let assert engine.Map(m) = res
   should.equal(dict.size(m), 0)
 }
-
-@external(erlang, "gleam_erl_ffi", "coerce")
-fn coerce(a: a) -> b

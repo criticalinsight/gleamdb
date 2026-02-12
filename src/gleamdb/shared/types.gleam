@@ -1,4 +1,5 @@
 import gleam/dict.{type Dict}
+import gleam/option.{type Option}
 import gleam/erlang/process.{type Subject}
 import gleamdb/fact.{type AttributeConfig, type Datom, type DbFunction}
 import gleamdb/index.{type Index, type AIndex, type AVIndex}
@@ -16,6 +17,9 @@ pub type DbState {
     functions: Dict(String, DbFunction(DbState)),
     composites: List(List(String)),
     reactive_actor: Subject(ReactiveMessage),
+    followers: List(process.Pid),
+    is_distributed: Bool,
+    ets_name: Option(String),
   )
 }
 
@@ -27,33 +31,31 @@ pub type Part {
   Val(fact.Value)
 }
 
-pub type AggFunc {
-  Count
-  Sum
-  Min
-  Max
-}
-
 pub type BodyClause {
   Positive(Clause)
   Negative(Clause)
-  Aggregate(variable: String, func: AggFunc, target: String)
+  Filter(fn(Dict(String, fact.Value)) -> Bool)
+  Bind(String, fn(Dict(String, fact.Value)) -> fact.Value)
+  Aggregate(
+    variable: String,
+    function: AggFunc,
+    target: String,
+    filter: List(BodyClause),
+  )
   Similarity(variable: String, vector: List(Float), threshold: Float)
 }
 
-pub type QueryResultItem =
-  Dict(String, fact.Value)
+pub type AggFunc {
+  Sum
+  Count
+  Min
+  Max
+  Avg
+  Median
+}
 
 pub type QueryResult =
-  List(QueryResultItem)
-
-pub type ReactiveResult =
-  QueryResult
-
-pub type ReactiveDelta {
-  Initial(QueryResult)
-  Delta(added: QueryResult, removed: QueryResult)
-}
+  List(Dict(String, fact.Value))
 
 pub type ReactiveMessage {
   Subscribe(
@@ -63,4 +65,9 @@ pub type ReactiveMessage {
     initial_state: QueryResult,
   )
   Notify(changed_attributes: List(String), current_state: DbState)
+}
+
+pub type ReactiveDelta {
+  Initial(QueryResult)
+  Delta(added: QueryResult, removed: QueryResult)
 }

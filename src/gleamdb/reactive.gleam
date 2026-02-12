@@ -57,9 +57,14 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
   |> result.map(fn(started) { started.data })
 }
 
+import gleam/set
+
 fn diff(old: QueryResult, new: QueryResult) -> #(QueryResult, QueryResult) {
-  let added = list.filter(new, fn(item) { !list.contains(old, item) })
-  let removed = list.filter(old, fn(item) { !list.contains(new, item) })
+  let old_set = set.from_list(old)
+  let new_set = set.from_list(new)
+  
+  let added = set.difference(new_set, old_set) |> set.to_list()
+  let removed = set.difference(old_set, new_set) |> set.to_list()
   
   #(added, removed)
 }

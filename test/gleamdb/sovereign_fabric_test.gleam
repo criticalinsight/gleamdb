@@ -16,14 +16,14 @@ pub fn sovereign_fabric_test() {
   
   // 2. Transact initial state (TX 1)
   let assert Ok(_) = gleamdb.transact(db, [
-    #(EntityId(1), "user/name", Str("Rich")),
-    #(EntityId(1), "user/profile", Int(2)),
-    #(EntityId(2), "profile/bio", Str("Composer of Code"))
+    #(fact.Uid(fact.EntityId(1)), "user/name", Str("Rich")),
+    #(fact.Uid(fact.EntityId(1)), "user/profile", Int(2)),
+    #(fact.Uid(fact.EntityId(2)), "profile/bio", Str("Composer of Code"))
   ])
   
   // 3. Verify Pull API (Nested)
   let pull_pattern = [Nested("user/profile", [Wildcard])]
-  let result = gleamdb.pull(db, fact.EntityId(1), pull_pattern)
+  let result = gleamdb.pull(db, fact.Uid(fact.EntityId(1)), pull_pattern)
   
   let assert engine.Map(res_map) = result
   
@@ -37,7 +37,7 @@ pub fn sovereign_fabric_test() {
   
   // 4. Update state (TX 2)
   let assert Ok(_) = gleamdb.transact(db, [
-    #(EntityId(1), "user/name", Str("Rich Hickey"))
+    #(fact.Uid(fact.EntityId(1)), "user/name", Str("Rich Hickey"))
   ])
   
   // 5. Verify Bi-temporality (as_of)
@@ -45,8 +45,6 @@ pub fn sovereign_fabric_test() {
   
   // Current state
   let current_res = gleamdb.query(db, q)
-  // Check that we have a result. Exact format might vary slightly depending on how query returns bindings.
-  // Query returns List(Dict(String, Value))
   let assert Ok(binding) = list.first(current_res)
   should.equal(dict.get(binding, "name"), Ok(Str("Rich Hickey")))
 
@@ -57,8 +55,8 @@ pub fn sovereign_fabric_test() {
   
   // 6. Verify Component Cascades (Recursive Retraction)
   let assert Ok(_) = gleamdb.retract(db, [
-    #(EntityId(1), "user/name", Str("Rich Hickey")),
-    #(EntityId(1), "user/profile", Int(2))
+    #(fact.Uid(fact.EntityId(1)), "user/name", Str("Rich Hickey")),
+    #(fact.Uid(fact.EntityId(1)), "user/profile", Int(2))
   ])
   
   // Verify user is gone
@@ -66,12 +64,7 @@ pub fn sovereign_fabric_test() {
   |> should.equal([])
   
   // Verify profile (component) was also retracted automatically
-  // Note: automatic component retraction is implemented in transactor logic.
-  // Ideally we would verify this. For now let's assume manual retraction of component root is required 
-  // or that transactor handles it.
-  // The test expects it to be gone.
   let q_profile = [p(#(types.Var("e"), "profile/bio", types.Var("bio")))]
   gleamdb.query(db, q_profile)
-  // If cascading is not fully implemented in this minimal transactor, this might fail if we expect it to auto-delete entity 2.
-  // But let's keep the test expectation for now.
+  |> should.equal([])
 }

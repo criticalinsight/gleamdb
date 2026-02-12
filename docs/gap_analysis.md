@@ -16,7 +16,8 @@ As GleamDB reaches Phase 17, it is a robust engine, closing the gap on "quality 
 | **Bi-temporality** | ✅ | ❌ | ✅ | ✅ | High (Auditing) |
 | **Unique Identity** | ✅ | ✅ | ✅ | ✅ | **CRITICAL** |
 | **Component Cascades**| ✅ | ✅ | ❌ | ❌ | High (Cleanup) |
-| **Vector Search** | ❌ | ❌ | ❌ | ✅ | High (AI) |
+| **Vector Search** | ✅ | ❌ | ❌ | ✅ | High (AI) |
+| **Durable Maturity** | ✅ | ✅ | ✅ | ✅ | **CRITICAL** |
 
 ---
 
@@ -52,11 +53,20 @@ As GleamDB reaches Phase 17, it is a robust engine, closing the gap on "quality 
 
 ---
 
-## Proposing: Phase 15 - Vector Sovereignty 🧙🏾‍♂️
-The next logical step for GleamDB is "Direction."
+## Proposing: Phase 22 - The Distributed Sovereign 🧙🏾‍♂️
+The next logical step for GleamDB is "Scale."
 
-1.  **Vector Value Type**: First-class support for embeddings.
-2.  **Similarity Search**: HNSW indices managed by the transactor/actor.
-3.  **Hybrid Search**: Combining Datalog filters with Vector similarity.
+1.  **Raft Consensus**: Multi-node replication for high availability.
+2.  **Streaming Transactions**: Handling high-throughput ingestion via GenStage.
+3.  **Global Naming**: Connecting nodes via `Subject` registry.
 
-*This evolves the system from a "Knowledge Graph" to a "Cognitive Fabric".*
+---
+
+## Proposing: Phase 23 - Performance Sovereignty (Silicon Saturation) ⚡️
+Optimizing for high-core count, unified memory machines (M2 Pro).
+
+1.  **EtS-backed Indices**: Concurrent read-concurrency with zero-copy semantics.
+2.  **Parallel Datalog**: Spawning join-workers across all 12+ cores.
+3.  **Epoch Pipelining**: Batching transactions into 10ms "trains" for high-throughput persistence.
+
+*This moves the system from "Correct" to "Extreme Efficiency".*

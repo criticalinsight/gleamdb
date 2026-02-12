@@ -11,20 +11,20 @@ pub fn composite_uniqueness_test() {
   
   // 2. Transact first user
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(1), "user/org", fact.Str("Acme")),
-    #(fact.EntityId(1), "user/email", fact.Str("alice@acme.com"))
+    #(fact.Uid(fact.EntityId(1)), "user/org", fact.Str("Acme")),
+    #(fact.Uid(fact.EntityId(1)), "user/email", fact.Str("alice@acme.com"))
   ])
   
   // 3. Transact same user in different org (should pass)
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.EntityId(2), "user/org", fact.Str("Globex")),
-    #(fact.EntityId(2), "user/email", fact.Str("alice@acme.com"))
+    #(fact.Uid(fact.EntityId(2)), "user/org", fact.Str("Globex")),
+    #(fact.Uid(fact.EntityId(2)), "user/email", fact.Str("alice@acme.com"))
   ])
   
   // 4. Transact duplicate user in same org (should fail)
   let result = gleamdb.transact(db, [
-    #(fact.EntityId(3), "user/org", fact.Str("Acme")),
-    #(fact.EntityId(3), "user/email", fact.Str("alice@acme.com"))
+    #(fact.Uid(fact.EntityId(3)), "user/org", fact.Str("Acme")),
+    #(fact.Uid(fact.EntityId(3)), "user/email", fact.Str("alice@acme.com"))
   ])
   
   case result {
