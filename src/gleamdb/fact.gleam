@@ -38,8 +38,14 @@ pub type Operation {
   Retract
 }
 
+pub type Retention {
+  All
+  LatestOnly
+  Last(Int)
+}
+
 pub type AttributeConfig {
-  AttributeConfig(unique: Bool, component: Bool)
+  AttributeConfig(unique: Bool, component: Bool, retention: Retention)
 }
 
 /// A Fact is #(Eid, Attribute, Value) for assertion,

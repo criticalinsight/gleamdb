@@ -5,6 +5,7 @@ import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
 import gleamdb/shared/types.{type ReactiveDelta, type ReactiveMessage, type QueryResult, Delta, Notify, Subscribe}
 import gleamdb/engine
+import gleamdb/process_extra as gleamdb_process_extra
 
 type ActiveQuery {
   ActiveQuery(
@@ -28,25 +29,30 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
         actor.continue(State(queries: [new_query, ..state.queries]))
       }
       Notify(changed_attrs, db_state) -> {
-        let new_queries = list.map(state.queries, fn(aq: ActiveQuery) {
-          let is_affected = list.any(changed_attrs, fn(ca) {
-            list.contains(aq.attributes, ca)
-          })
-          
-          case is_affected {
+        let new_queries = list.filter_map(state.queries, fn(aq: ActiveQuery) {
+          case gleamdb_process_extra.is_alive(aq.subscriber) {
+            False -> Error(Nil)
             True -> {
-              let current_result = engine.run(db_state, aq.query, [], None)
-              let #(added, removed) = diff(aq.last_result, current_result)
+              let is_affected = list.any(changed_attrs, fn(ca) {
+                list.contains(aq.attributes, ca)
+              })
               
-              case added == [] && removed == [] {
-                True -> aq // No actual change
-                False -> {
-                  process.send(aq.subscriber, Delta(added, removed))
-                  ActiveQuery(..aq, last_result: current_result)
+              case is_affected {
+                True -> {
+                  let current_result = engine.run(db_state, aq.query, [], None)
+                  let #(added, removed) = diff(aq.last_result, current_result)
+                  
+                  case added == [] && removed == [] {
+                    True -> Ok(aq) // No actual change
+                    False -> {
+                      process.send(aq.subscriber, Delta(added, removed))
+                      Ok(ActiveQuery(..aq, last_result: current_result))
+                    }
+                  }
                 }
+                False -> Ok(aq)
               }
             }
-            False -> aq
           }
         })
         actor.continue(State(queries: new_queries))

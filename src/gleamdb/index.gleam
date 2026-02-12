@@ -24,14 +24,42 @@ pub fn new_avindex() -> AVIndex {
   dict.new()
 }
 
-pub fn insert_eavt(index: Index, datom: Datom) -> Index {
+pub fn insert_eavt(index: Index, datom: Datom, retention: fact.Retention) -> Index {
   let bucket = dict.get(index, datom.entity) |> result_to_list
-  dict.insert(index, datom.entity, [datom, ..bucket])
+  let new_bucket = case retention {
+    fact.All -> [datom, ..bucket]
+    fact.LatestOnly -> {
+      // Filter out existing datoms for this attribute
+      let filtered = list.filter(bucket, fn(d) { d.attribute != datom.attribute })
+      [datom, ..filtered]
+    }
+    fact.Last(n) -> {
+      let filtered = list.filter(bucket, fn(d) { d.attribute != datom.attribute })
+      let existing = list.filter(bucket, fn(d) { d.attribute == datom.attribute })
+      let kept = list.take(existing, n - 1)
+      [datom, ..list.append(kept, filtered)]
+    }
+  }
+  dict.insert(index, datom.entity, new_bucket)
 }
 
-pub fn insert_aevt(index: AIndex, datom: Datom) -> AIndex {
+pub fn insert_aevt(index: AIndex, datom: Datom, retention: fact.Retention) -> AIndex {
   let bucket = dict.get(index, datom.attribute) |> result_to_list
-  dict.insert(index, datom.attribute, [datom, ..bucket])
+  let new_bucket = case retention {
+    fact.All -> [datom, ..bucket]
+    fact.LatestOnly -> {
+      // Latest per entity for this attribute
+      let filtered = list.filter(bucket, fn(d) { d.entity != datom.entity })
+      [datom, ..filtered]
+    }
+    fact.Last(n) -> {
+      let filtered = list.filter(bucket, fn(d) { d.entity != datom.entity })
+      let existing = list.filter(bucket, fn(d) { d.entity == datom.entity })
+      let kept = list.take(existing, n - 1)
+      [datom, ..list.append(kept, filtered)]
+    }
+  }
+  dict.insert(index, datom.attribute, new_bucket)
 }
 
 pub fn insert_avet(index: AVIndex, datom: Datom) -> AVIndex {
@@ -41,11 +69,11 @@ pub fn insert_avet(index: AVIndex, datom: Datom) -> AVIndex {
 }
 
 pub fn delete_eavt(index: Index, datom: Datom) -> Index {
-  insert_eavt(index, datom)
+  insert_eavt(index, datom, fact.All)
 }
 
 pub fn delete_aevt(index: AIndex, datom: Datom) -> AIndex {
-  insert_aevt(index, datom)
+  insert_aevt(index, datom, fact.All)
 }
 
 pub fn delete_avet(index: AVIndex, datom: Datom) -> AVIndex {

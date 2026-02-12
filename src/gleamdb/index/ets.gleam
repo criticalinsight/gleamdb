@@ -63,3 +63,17 @@ pub fn get_av(table: TableName, attr: String, val: Value) -> Option(EntityId) {
 
 @external(erlang, "gleamdb_ets_ffi", "lookup")
 fn do_lookup_avet(table: TableName, key: any) -> List(#(any, EntityId))
+
+pub fn prune_historical(table: TableName, eid: EntityId, attr: String) -> Nil {
+  do_prune_eavt(table, eid, attr)
+}
+
+pub fn prune_historical_aevt(table: TableName, attr: String, eid: EntityId) -> Nil {
+  do_prune_aevt(table, attr, eid)
+}
+
+@external(erlang, "gleamdb_ets_ffi", "prune_eavt")
+fn do_prune_eavt(table: TableName, eid: EntityId, attr: String) -> Nil
+
+@external(erlang, "gleamdb_ets_ffi", "prune_aevt")
+fn do_prune_aevt(table: TableName, attr: String, eid: EntityId) -> Nil

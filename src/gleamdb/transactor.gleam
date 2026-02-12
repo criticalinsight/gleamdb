@@ -6,12 +6,11 @@ import gleam/result
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleamdb/fact
-import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Positive, Subscribe}
+import gleamdb/shared/types
 import gleamdb/engine
 import gleamdb/index
 import gleamdb/storage
 import gleamdb/global
-import gleamdb/process_extra
 import gleamdb/reactive
 import gleamdb/index/ets as ets_index
 
@@ -360,7 +359,7 @@ fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation)
       Some(id) -> {
         case op {
           fact.Assert -> {
-            let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(False, False))
+            let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
             
             // Cardinality One
             let #(sub_state, sub_datoms) = case config.unique {
@@ -389,7 +388,7 @@ fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation)
             }
           }
           fact.Retract -> {
-             let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(False, False))
+             let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
              let #(sub_state, sub_datoms) = case config.component {
                True -> {
                  case f.2 {
@@ -490,7 +489,7 @@ fn retract_recursive_collected(state: types.DbState, eid: fact.EntityId, tx_id: 
   let children = index.filter_by_entity(state.eavt, eid) |> filter_active()
   list.fold(children, #(state, acc), fn(curr, d) {
     let #(curr_state, curr_acc) = curr
-    let config = dict.get(curr_state.schema, d.attribute) |> result.unwrap(fact.AttributeConfig(False, False))
+    let config = dict.get(curr_state.schema, d.attribute) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
     let #(sub_state, sub_acc) = case config.component {
       True -> {
         case d.value {
@@ -506,8 +505,19 @@ fn retract_recursive_collected(state: types.DbState, eid: fact.EntityId, tx_id: 
 }
 
 fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
+  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
+  let retention = config.retention
+
   case state.ets_name {
     Some(name) -> {
+      case retention {
+        fact.LatestOnly -> {
+           ets_index.prune_historical(name <> "_eavt", datom.entity, datom.attribute)
+           ets_index.prune_historical_aevt(name <> "_aevt", datom.attribute, datom.entity)
+        }
+        _ -> Nil
+      }
+      
       ets_index.insert_datom(name <> "_eavt", datom.entity, datom)
       ets_index.insert_datom(name <> "_aevt", datom.attribute, datom)
       case datom.operation {
@@ -522,8 +532,8 @@ fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
     fact.Assert -> {
       types.DbState(
         ..state,
-        eavt: index.insert_eavt(state.eavt, datom),
-        aevt: index.insert_aevt(state.aevt, datom),
+        eavt: index.insert_eavt(state.eavt, datom, retention),
+        aevt: index.insert_aevt(state.aevt, datom, retention),
         avet: index.insert_avet(state.avet, datom)
       )
     }
@@ -568,7 +578,7 @@ fn resolve_eid(state: types.DbState, eid: fact.Eid) -> Option(fact.EntityId) {
 }
 
 fn check_constraints(state: types.DbState, datom: fact.Datom) -> Result(Nil, String) {
-  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(False, False))
+  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
   case config.unique {
     True -> {
       case index.get_entity_by_av(state.avet, datom.attribute, datom.value) {

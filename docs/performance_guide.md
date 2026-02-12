@@ -41,6 +41,19 @@ list.each(0..10, fn(_) {
 })
 ```
 
-### Batch Transactions
-
 While reads are concurrent, writes remain serialized through the leader's Transactor. For maximum throughput, combine multiple facts into a single `transact` call to leverage batch persistence and replication.
+
+## Memory Management: Fact Retention
+
+High-frequency ingestion saturates memory quickly if history is infinite. Use **Retention Policies** to bound the growth:
+
+```gleam
+let config = fact.AttributeConfig(
+  unique: False, 
+  component: False, 
+  retention: fact.LatestOnly
+)
+gleamdb.set_schema(db, "sensor/value", config)
+```
+
+Attributes with `LatestOnly` will prune their history during every transaction, ensuring O(1) memory for ephemeral streams while preserving permanent facts elsewhere.

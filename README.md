@@ -13,6 +13,8 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 
 ## 🚀 Key Features
 - **Silicon Saturation**: Lock-free, concurrent read indices via ETS (O(1) access).
+- **Vector Sovereignty**: Native similarity search for semantic context and clustering.
+- **Memory Safety**: Fact Retention Policies (`LatestOnly`, `Last(N)`) and subscriber scavenging.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
 
@@ -65,6 +67,22 @@ let query = q.select(["name"])
 
 let results = gleamdb.query(db, query)
 // Returns list of bindings: [#("name", Str("Alice"))]
+```
+
+### Vector Similarity Search
+```gleam
+import gleamdb/shared/types.{Similarity, Val, Var}
+
+let query = [
+  Similarity(Var("market"), [0.1, 0.2, 0.3], 0.9)
+]
+let results = gleamdb.query(db, query)
+```
+
+### Memory Safety (Retention)
+```gleam
+let config = fact.AttributeConfig(unique: False, component: False, retention: fact.LatestOnly)
+gleamdb.set_schema(db, "ticker/price", config)
 ```
 
 ## 📚 Documentation

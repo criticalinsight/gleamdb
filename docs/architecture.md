@@ -61,6 +61,18 @@ The development followed seven distinct phases, each layering complexity only wh
     2.  **Standard OTP API:** `start_link` and `child_spec` allow `gleamdb` to sit naturally in a supervision tree.
 *   **Result:** A library that feels "native" to the Gleam ecosystem.
 
+### Phase 18: Vector Sovereignty (Context)
+*   **The Problem:** Analytical agents need to reason about *similarity*, not just equality. 
+*   **The Solution:** Integrated **Vector Similarity** into the Datalog engine using Cosine Similarity over `fact.Vec` data.
+*   **Innovation:** Semantic queries now live alongside logical ones in the same DSL.
+
+### Phase 19: The Saturation Paradox (Memory Safety)
+*   **The Problem:** Silicon Saturation's throughput (~1M ops/sec theoretical) exceeded the physical memory bounds when combined with infinite history.
+*   **The Solution:**
+    1.  **Retention Policies:** Implemented `LatestOnly` and `Last(N)` pruning in indices and ETS.
+    2.  **Subscriber Scavenging:** Reactive nervous system now auto-prunes dead listener subjects.
+*   **Result:** Indefinite high-frequency ingestion stability.
+
 ## Core Philosophy: What Would Rich Hickey Do?
 
 Throughout development, we asked: *Is the increased complexity worth the utility?*
@@ -81,6 +93,8 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 | **Ingestion Latency** | Sequential IO (N writes) | Atomic `persist_batch` protocol (~55x faster). |
 | **Substring Search** | Relational Datalog bottleneck | De-complected native FTS5 integration. |
 | **Actor Timeouts** | Sync calls on massive batches | SQLite WAL Mode + Configurable `transact_with_timeout`. |
+| **Memory Exhaustion**| High-frequency infinite history | Fact Retention Policies (`LatestOnly`) + Scavenging. |
+| **Context Gap** | Pure logical equality | Vector Sovereignty (Similarity queries in Datalog). |
 
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️
