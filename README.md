@@ -13,7 +13,9 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 
 ## 🚀 Key Features
 - **Silicon Saturation**: Lock-free, concurrent read indices via ETS (O(1) access).
-- **Vector Sovereignty**: Native similarity search for semantic context and clustering.
+- **Vector Sovereignty**: Native similarity search via NSW (Navigable Small-World) graph index — O(log N).
+- **Raft HA**: Term-based leader election for zero-downtime failover.
+- **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity from data at the type level.
 - **Memory Safety**: Fact Retention Policies (`LatestOnly`, `Last(N)`) and subscriber scavenging.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
@@ -23,6 +25,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 
 - **Concurrency**: Lock-free reads via Silicon Saturation (ETS), allowing linear scaling with CPU cores.
 - **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL) or **~2,500 events/sec** (Durable Mnesia).
+- **Similarity**: O(log N) via NSW graph index (vs O(N) brute-force scan).
 - **Latency**: Sub-millisecond read access for single-entity lookups.
 
 ## 🛠️ Usage

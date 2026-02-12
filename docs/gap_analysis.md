@@ -1,6 +1,6 @@
 # Gap Analysis: GleamDB vs The Giants 🧙🏾‍♂️
 
-As GleamDB reaches Phase 17, it is a robust engine, closing the gap on "quality of life" and structural features found in mature competitors like **Datomic**, **XTDB**, and **CozoDB**.
+As GleamDB reaches Phase 23, it is a robust engine that has **closed the critical gaps** with mature competitors like **Datomic**, **XTDB**, and **CozoDB**.
 
 ## Competitive Landscape
 
@@ -16,51 +16,31 @@ As GleamDB reaches Phase 17, it is a robust engine, closing the gap on "quality 
 | **Bi-temporality** | ✅ | ❌ | ✅ | ✅ | High (Auditing) |
 | **Unique Identity** | ✅ | ✅ | ✅ | ✅ | **CRITICAL** |
 | **Component Cascades**| ✅ | ✅ | ❌ | ❌ | High (Cleanup) |
-| **Vector Search** | ✅ | ❌ | ❌ | ✅ | High (AI) |
+| **Vector Search (NSW)** | ✅ | ❌ | ❌ | ✅ | High (AI) |
 | **Durable Maturity** | ✅ | ✅ | ✅ | ✅ | **CRITICAL** |
 | **Silicon Saturation** | ✅ | ❌ | ⚠️ | ⚠️ | **ULTRA** |
+| **Raft HA** | ✅ | ✅ | ✅ | ❌ | **CRITICAL** |
+| **ID Sovereignty** | ✅ | ✅ | ✅ | ⚠️ | High (Safety) |
 
 ---
 
-## High-Utility Ideas for GleamDB
+## Implemented Features
 
-### 1. The Pull API (Inspired by Datomic)
-**Status:** ✅ Implemented
-**The Gap:** Currently, retrieving a complex entity (e.g., a "User" with their "Posts" and "Comments") requires manual Datalog joins or multiple queries.
-**The Port:** Implement `gleamdb.pull(db, entity_id, pattern)`.
-*   **Utility:** Transforms raw triples into nested Gleam `Dicts`. This is the "God Feature" for Frontend developers.
-*   **Hickey Logic:** It separates the *Facts* from the *Shape* the consumer needs.
-
-### 2. Unique Identity & Constraints (Inspired by Datomic/Cozo)
-**Status:** ✅ Implemented
-**The Gap:** GleamDB allows multiple facts with the same Attribute for an Entity. While flexible, it makes common constraints (e.g., "One email per User") hard to enforce.
-**The Port:** Support **Identity Constraints**.
-*   **Utility:** Ensures data integrity. Prevents "junk" facts from accumulating in the transactor.
-*   **Hickey Logic:** Data should be *correct* by construction.
-
-### 3. Component Attributes (Inspired by Datomic)
-**Status:** ✅ Implemented
-**The Gap:** Deleting a parent entity in a triple store often leaves "orphan" child entities.
-**The Port:** Mark certain attributes as `:is_component`.
-*   **Utility:** Retracting a `User` automatically retracts their `Profile`.
-*   **Hickey Logic:** It provides *referential integrity* without the complexity of Foreign Keys.
-
-### 4. Reactive Datalog (Inspired by Differential Dataflow)
-**Status:** ✅ Implemented
-**The Gap:** To update a UI, the user must re-run the query.
-**The Port:** Leverage the `Subscribe` mechanism to provide **Incremental Updates**.
-*   **Utility:** Replicas only compute the "delta" of a query instead of the full set.
-*   **Hickey Logic:** Computation should be as immutable and composable as the data itself.
+### 1. The Pull API — ✅ Implemented
+### 2. Unique Identity & Constraints — ✅ Implemented
+### 3. Component Attributes — ✅ Implemented
+### 4. Reactive Datalog — ✅ Implemented
+### 5. ID Sovereignty (Phase 21) — ✅ `fact.Ref(EntityId)` de-complects identity from data.
+### 6. Raft Election Protocol (Phase 22) — ✅ Pure state machine with term-based consensus.
+### 7. NSW Vector Index (Phase 23) — ✅ O(log N) graph-accelerated similarity search.
 
 ---
 
----
+## Current Status: Phase 23 - Resilient Maturity 🧙🏾‍♂️
 
-## Current Status: Phase 20 - The Durable Sovereign 🧙🏾‍♂️
-We have successfully bridged the gap between "Logical Correctness" and "Production Resilience." 
-
+All critical gaps are closed:
 1.  **Sovereign Fabric**: Mnesia-backed leader-follower replication.
 2.  **Silicon Saturation**: ETS-backed lock-free reads.
-3.  **Atomic Persistence**: Batch-commit protocol for high throughput.
-
-*Next: Raft-based high availability and query plan optimization.*
+3.  **Raft HA**: Term-based leader election with zero-downtime failover.
+4.  **NSW Vector Index**: Graph-accelerated similarity search.
+5.  **ID Sovereignty**: Type-safe entity identity via `fact.Ref`.

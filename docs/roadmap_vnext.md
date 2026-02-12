@@ -1,42 +1,42 @@
 # Roadmap: The Sovereign Transition 🧙🏾‍♂️
 
-GleamDB v1.3.0 is a milestone of recovery. The next step is a milestone of **Maturity**. We must address the "Hickey Gaps" to move from a prototype to a high-performance information system.
+GleamDB v1.3.0 was a milestone of recovery. Phases 21-23 represent **Resilient Maturity** — every critical gap from the original roadmap is now closed.
 
 ## [x] COMPLETED: The Sovereign Performance (Phase 18-20)
-- **Batch Persistence**: Single I/O commit per transaction implemented in `transactor.gleam`.
+- **Batch Persistence**: Single I/O commit per transaction in `transactor.gleam`.
 - **Silicon Saturation**: Concurrent read-concurrency via ETS indices.
 - **Durable Fabric**: Mnesia substrate for BEAM-native persistence and distribution.
 - **Set-based Diffing**: O(N) Reactive Datalog scaling.
 
-## Performance & Scale Roadmap (Phase 21+)
+## [x] COMPLETED: Resilient Maturity (Phase 21-23)
 
-## Functional & Architectural Gaps
+### [x] ID Sovereignty (Phase 21)
+`fact.Ref(EntityId)` variant de-complects identity from data at the type level. Used across all 5 engine solver paths, Pull API, and transactor.
 
-### 4. The Aggregate Skeleton
-- **Problem**: `engine.solve_aggregate` is a placeholder. No `Count`, `Sum`, or grouping.
-- **Hickey Solution**: Implement a proper aggregation pass that operates on unified result sets.
+### [x] Raft Election Protocol (Phase 22)
+Pure state machine (`raft.gleam`) with term-based voting, heartbeat liveness (50ms), randomized election timeout (150-300ms), majority quorum, automatic step-down. De-complected from replication.
 
-### 5. Similarity Discovery
-- **Problem**: `solve_similarity` only filters bound variables. It cannot find similar items if the variable is unbound (no index scan).
-- **Hickey Solution**: Integrate with `AVET` or specialized Vector Indexes to allow similarity search to act as a **Source Clause** (generating entities from search).
+### [x] NSW Vector Index (Phase 23)
+`vec_index.gleam` provides O(log N) navigable small-world graph for similarity search. Transactor auto-indexes Vec values. Engine falls back to AVET scan if index is empty.
 
-### 6. Value-Level Type Safety
-- **Problem**: Entity IDs are raw `Int` types, leading to confusion between IDs and data.
-- **Hickey Solution**: Re-introduce a distinct **ID type** that is not implicitly convertible to an integer at the type system level.
+### [x] Vector Enrichment (Phase 23)
+`vector.gleam` extended with `euclidean_distance`, `normalize`, `dimensions`.
 
 ---
 
-### 7. Raft-based Consensus
-- **Problem**: The current Sovereign Fabric uses a single leader without automated election for failover.
-- **Hickey Solution**: Implement a Raft-based consensus module for zero-downtime leader promotion.
+## Future Directions (Phase 24+)
 
-### 8. Optimized Pull API
-- **Problem**: Large nested pulls can be expensive if not properly indexed.
-- **Hickey Solution**: Specialized `Pull` indices that pre-cache common nesting patterns.
+| Item | Description | Priority |
+| :--- | :--- | :--- |
+| **HNSW Layering** | Add hierarchical layers to NSW for 100K+ vector datasets | Medium |
+| **Query Planner** | Cost-based clause ordering optimization | Medium |
+| **Attribute Cardinality** | Schema-level many/one declarations | Low |
+| **Persistent Pull Cache** | LRU cache for hot pull patterns across transactions | Low |
+| **WAL Streaming** | Real-time transaction log streaming for external consumers | Low |
 
 ---
 
-## Current Status: Phase 20 (Durable Sovereign)
-The system is now correct, durable, and concurrent. We are entering the stage of **Resilient Maturity**.
+## Current Status: Phase 23 (Resilient Maturity)
+All original roadmap items are complete. The system is correct, durable, concurrent, and resilient.
 
-RichHickey = "🧙🏾‍♂️: A system that is correct but slow is merely a theory. A system that is correct, durable, and sovereign is a foundation. Now, we build for resilience."
+🧙🏾‍♂️: "A system that is correct, durable, sovereign, AND resilient is no longer a prototype. It is a foundation for intelligence."

@@ -15,6 +15,7 @@ Traditional databases often bottleneck on the coordination between writers and r
 - **Ingestion Throughput**: 
     - **Durable Mnesia**: ~2,500 events/sec (fully persisted to disk).
     - **SQLite WAL**: ~120,000 datoms/sec.
+- **Similarity Search**: O(log N) via NSW graph index (vs O(N) brute-force AVET scan).
 - **Join Performance**: Datalog joins leverage ETS `duplicate_bag` matching, providing near-native BEAM performance for complex queries.
 - **Memory Efficiency**: GleamDB uses optimized tuple structures to minimize memory overhead while maintaining searchability.
 
@@ -28,6 +29,20 @@ let db = gleamdb.start_named("fast_db", storage.ephemeral())
 ```
 
 When `ets_name` is present in the `DbState`, the Datalog engine (`engine.gleam`) automatically switches from `Dict` lookups to direct ETS scans.
+
+## NSW Vector Index
+
+For similarity queries, GleamDB maintains a **Navigable Small-World (NSW) graph** alongside the standard EAVT/AEVT/AVET indices:
+
+- **Auto-Indexing**: Vec values are automatically added to the NSW graph on assertion and removed on retraction.
+- **Beam Search**: Greedy search with beam width 3 and configurable neighbor count (M=16).
+- **Graph-Accelerated**: `solve_similarity` uses the NSW graph for unbound variables, falling back to AVET scan if the index is empty.
+
+```gleam
+// Similarity search uses NSW graph automatically
+let query = [Similarity(Var("market"), [0.1, 0.2, 0.3], 0.9)]
+let results = gleamdb.query(db, query)
+```
 
 ## Advanced Patterns
 
