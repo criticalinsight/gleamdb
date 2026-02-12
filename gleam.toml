@@ -1,5 +1,7 @@
 name = "gleamdb"
 version = "1.4.0"
+description = "A high-performance, analytical Datalog engine for Gleam"
+licences = ["Apache-2.0"]
 
 [dependencies]
 gleam_stdlib = ">= 0.40.0"
