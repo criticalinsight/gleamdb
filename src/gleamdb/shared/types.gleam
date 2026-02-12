@@ -4,6 +4,7 @@ import gleam/erlang/process.{type Subject}
 import gleamdb/fact.{type AttributeConfig, type Datom, type DbFunction}
 import gleamdb/index.{type Index, type AIndex, type AVIndex}
 import gleamdb/storage.{type StorageAdapter}
+import gleamdb/raft
 
 pub type DbState {
   DbState(
@@ -20,6 +21,7 @@ pub type DbState {
     followers: List(process.Pid),
     is_distributed: Bool,
     ets_name: Option(String),
+    raft_state: raft.RaftState,
   )
 }
 

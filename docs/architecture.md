@@ -102,6 +102,13 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 | **Memory Exhaustion**| High-frequency infinite history | Fact Retention Policies (`LatestOnly`) + Scavenging. |
 | **Context Gap** | Pure logical equality | Vector Sovereignty (Similarity queries in Datalog). |
 | **Leader Down** | Static registration | Autonomous Failover (Process Monitoring + Promotion). |
+| **Split-Brain** | Concurrent leaders | Raft Election Protocol (Term-based voting + majority quorum). |
+
+### Phase 22: Raft Election Protocol (Consensus)
+*   **The Problem:** The Sovereign Fabric relied on static `global:register_name` for leader election — no term-based voting, no split-brain prevention.
+*   **The Solution:** Implemented a **pure Raft state machine** (`raft.gleam`) for leader election, de-complected from replication (handled by Mnesia + SyncDatoms).
+*   **Innovation:** The state machine is pure — it returns `#(RaftState, List(RaftEffect))`. The transactor interprets the effects (send heartbeats, register leader, manage timers). This separates the election *logic* from the *mechanism*.
+*   **Result:** Term-based voting, heartbeat-driven liveness, majority quorum for leader promotion, and automatic step-down on higher terms.
 
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

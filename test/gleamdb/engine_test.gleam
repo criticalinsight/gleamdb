@@ -7,6 +7,7 @@ import gleamdb/shared/types
 import gleamdb/engine
 import gleamdb/storage
 import gleamdb/reactive
+import gleamdb/raft
 
 pub fn engine_run_test() {
   let assert Ok(reactive_subject) = reactive.start_link()
@@ -25,6 +26,7 @@ pub fn engine_run_test() {
       followers: [],
       is_distributed: False,
       ets_name: None,
+      raft_state: raft.new([]),
     )
 
   let query = [types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice"))))]
@@ -49,6 +51,7 @@ pub fn pull_test() {
       followers: [],
       is_distributed: False,
       ets_name: None,
+      raft_state: raft.new([]),
     )
   let res = engine.pull(state, fact.Uid(fact.EntityId(1)), [engine.Wildcard])
   let assert engine.Map(m) = res

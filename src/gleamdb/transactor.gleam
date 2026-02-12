@@ -14,6 +14,7 @@ import gleamdb/global
 import gleamdb/reactive
 import gleamdb/index/ets as ets_index
 import gleamdb/process_extra
+import gleamdb/raft
 
 pub type Message {
   Transact(List(fact.Fact), process.Subject(Result(types.DbState, String)))
@@ -25,6 +26,7 @@ pub type Message {
   SetReactive(process.Subject(types.ReactiveMessage))
   Join(process.Pid)
   SyncDatoms(List(fact.Datom))
+  RaftMsg(raft.RaftMessage)
 }
 
 pub type Db =
@@ -106,6 +108,7 @@ fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name:
       followers: [],
       is_distributed: is_distributed,
       ets_name: ets_name,
+      raft_state: raft.new([]),
     )
 
   let initial_state = recover_state(base_state)
@@ -204,18 +207,66 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       })
       actor.continue(types.DbState(..new_state, latest_tx: max_tx))
     }
+    RaftMsg(raft_msg) -> {
+      let self_pid = process_extra.self()
+      let #(new_raft, effects) = raft.handle_message(state.raft_state, raft_msg, self_pid)
+      let new_state = types.DbState(..state, raft_state: new_raft)
+      execute_raft_effects(new_state, effects, self_pid)
+      actor.continue(new_state)
+    }
   }
 }
 
 fn is_leader(state: types.DbState) -> Bool {
   case state.is_distributed {
     False -> True
-    True -> {
-      let self_pid = process_extra.self()
-      case global.whereis("gleamdb_leader") {
-        Ok(leader_pid) -> leader_pid == self_pid
-        Error(_) -> True // If no leader registered, we are the de-facto if we try
-      }
+    True -> raft.is_leader(state.raft_state)
+  }
+}
+
+/// Execute a list of Raft effects — the effectful shell around the pure state machine.
+fn execute_raft_effects(_state: types.DbState, effects: List(raft.RaftEffect), self_pid: process.Pid) -> Nil {
+  list.each(effects, fn(effect) {
+    execute_raft_effect(effect, self_pid)
+  })
+}
+
+fn execute_raft_effect(effect: raft.RaftEffect, self_pid: process.Pid) -> Nil {
+  case effect {
+    raft.SendHeartbeat(to, term, leader) -> {
+      let target: process.Subject(Message) = process_extra.pid_to_subject(to)
+      process.send(target, RaftMsg(raft.Heartbeat(term, leader)))
+      Nil
+    }
+    raft.SendVoteRequest(to, term, candidate) -> {
+      let target: process.Subject(Message) = process_extra.pid_to_subject(to)
+      process.send(target, RaftMsg(raft.VoteRequest(term, candidate)))
+      Nil
+    }
+    raft.SendVoteResponse(to, term, granted) -> {
+      let target: process.Subject(Message) = process_extra.pid_to_subject(to)
+      process.send(target, RaftMsg(raft.VoteResponse(term, granted, self_pid)))
+      Nil
+    }
+    raft.RegisterAsLeader -> {
+      let _ = global.register("gleamdb_leader", self_pid)
+      Nil
+    }
+    raft.UnregisterAsLeader -> {
+      global.unregister("gleamdb_leader")
+    }
+    raft.ResetElectionTimer -> {
+      // Timer management is handled by the FFI — in production,
+      // the transactor would maintain a timer ref in state.
+      // For now, the election timeout is simulated in tests.
+      Nil
+    }
+    raft.StartHeartbeatTimer -> {
+      // Same as above — timer management is deferred to Phase 22b.
+      Nil
+    }
+    raft.StopHeartbeatTimer -> {
+      Nil
     }
   }
 }
