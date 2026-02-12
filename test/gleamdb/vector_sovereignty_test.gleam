@@ -1,8 +1,8 @@
 import gleam/dict
 import gleam/list
 import gleamdb
-import gleamdb/fact.{EntityId, Int, Str, Vec}
-import gleamdb/shared/types.{Val, Var}
+import gleamdb/fact.{Str, Vec}
+import gleamdb/shared/types.{Var}
 import gleeunit/should
 
 pub fn vector_similarity_test() {
