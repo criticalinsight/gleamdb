@@ -393,6 +393,7 @@ fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation)
              let #(sub_state, sub_datoms) = case config.component {
                True -> {
                  case f.2 {
+                   fact.Ref(fact.EntityId(sub_id)) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, [])
                    fact.Int(sub_id) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, [])
                    _ -> #(curr_state, [])
                  }
@@ -469,10 +470,11 @@ fn check_composite_uniqueness(state: types.DbState, datom: fact.Datom) -> Result
     
     // If any result is NOT our current entity, it's a violation
     let has_violation = list.any(results, fn(binding) {
-      case dict.get(binding, "e") {
-        Ok(fact.Int(eid)) -> fact.EntityId(eid) != datom.entity
-        _ -> False
-      }
+        case dict.get(binding, "e") {
+          Ok(fact.Ref(eid)) -> eid != datom.entity
+          Ok(fact.Int(eid)) -> fact.EntityId(eid) != datom.entity
+          _ -> False
+        }
     })
     
     case has_violation {
@@ -494,6 +496,7 @@ fn retract_recursive_collected(state: types.DbState, eid: fact.EntityId, tx_id: 
     let #(sub_state, sub_acc) = case config.component {
       True -> {
         case d.value {
+          fact.Ref(fact.EntityId(sub_id)) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, curr_acc)
           fact.Int(sub_id) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, curr_acc)
           _ -> #(curr_state, curr_acc)
         }

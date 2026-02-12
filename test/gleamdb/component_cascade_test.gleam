@@ -10,8 +10,8 @@ pub fn component_cascade_test() {
   let db = gleamdb.new()
   
   // 1. Setup Component Schema
-  let assert Ok(_) = gleamdb.set_schema(db, "order/items", fact.AttributeConfig(unique: False, component: True))
-  let assert Ok(_) = gleamdb.set_schema(db, "item/name", fact.AttributeConfig(unique: False, component: False))
+  let assert Ok(_) = gleamdb.set_schema(db, "order/items", fact.AttributeConfig(unique: False, component: True, retention: fact.All))
+  let assert Ok(_) = gleamdb.set_schema(db, "item/name", fact.AttributeConfig(unique: False, component: False, retention: fact.All))
   
   // 2. Create Order with Items
   let assert Ok(_) = gleamdb.transact(db, [

@@ -31,6 +31,7 @@ pub type Value {
   Bool(Bool)
   List(List(Value))
   Vec(List(Float))
+  Ref(EntityId)
 }
 
 pub type Operation {

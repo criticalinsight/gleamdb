@@ -26,9 +26,9 @@ pub fn negation_test() {
   ])
   
   should.equal(list.length(result), 2)
-  should.be_true(list.contains(result, dict.from_list([#("e", Int(2)), #("n", fact.Str("Bob"))])))
-  should.be_true(list.contains(result, dict.from_list([#("e", Int(3)), #("n", fact.Str("Charlie"))])))
-  should.be_false(list.contains(result, dict.from_list([#("e", Int(1)), #("n", fact.Str("Alice"))])))
+  should.be_true(list.contains(result, dict.from_list([#("e", fact.Ref(fact.EntityId(2))), #("n", fact.Str("Bob"))])))
+  should.be_true(list.contains(result, dict.from_list([#("e", fact.Ref(fact.EntityId(3))), #("n", fact.Str("Charlie"))])))
+  should.be_false(list.contains(result, dict.from_list([#("e", fact.Ref(fact.EntityId(1))), #("n", fact.Str("Alice"))])))
 }
 
 pub fn aggregation_test() {

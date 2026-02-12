@@ -29,7 +29,7 @@ pub fn join_test() {
   // all_vars: ["a", "e"] (sorted alphabetic)
   // Our get_vars returns values in that order.
   should.equal(list.length(result), 1)
-  should.equal(result, [dict.from_list([#("a", Int(30)), #("e", Int(1))])])
+  should.equal(result, [dict.from_list([#("a", Int(30)), #("e", fact.Ref(fact.EntityId(1)))])])
 }
 
 pub fn retraction_test() {

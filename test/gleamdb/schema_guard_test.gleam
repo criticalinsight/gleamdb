@@ -17,7 +17,7 @@ pub fn schema_guard_test() {
   ])
   
   // 2. Attempt to make "username" unique (Should Fail)
-  let result = gleamdb.set_schema(db, "username", fact.AttributeConfig(unique: True, component: False))
+  let result = gleamdb.set_schema(db, "username", fact.AttributeConfig(unique: True, component: False, retention: fact.All))
   should.be_error(result)
   
   // 3. Retract duplicate
@@ -26,6 +26,6 @@ pub fn schema_guard_test() {
   ])
   
   // 4. Attempt to make "username" unique again (Should Succeed)
-  let result_retry = gleamdb.set_schema(db, "username", fact.AttributeConfig(unique: True, component: False))
+  let result_retry = gleamdb.set_schema(db, "username", fact.AttributeConfig(unique: True, component: False, retention: fact.All))
   should.be_ok(result_retry)
 }

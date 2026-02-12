@@ -7,3 +7,4 @@ erl_crash.dump
 # Sly Agent Data
 .sly/
 .env
+Mnesia.nonode@nohost/

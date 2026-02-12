@@ -62,7 +62,7 @@ pub fn vector_discovery_test() {
   should.equal(list.length(results), 2)
   
   let es = list.map(results, fn(row) {
-    let assert Ok(fact.Int(e)) = dict.get(row, "e")
+    let assert Ok(fact.Ref(fact.EntityId(e))) = dict.get(row, "e")
     e
   })
   

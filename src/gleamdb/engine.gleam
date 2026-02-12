@@ -83,6 +83,13 @@ fn do_derive_recursive(
           let e = resolve_part_optional(r.head.0, ctx)
           let v = resolve_part_optional(r.head.2, ctx)
           case e, v {
+            Some(fact.Ref(fact.EntityId(eid_val))), Some(val) -> {
+              let d = fact.Datom(entity: fact.EntityId(eid_val), attribute: r.head.1, value: val, tx: 0, operation: fact.Assert)
+              case set.contains(all_derived, d) {
+                True -> inner_acc
+                False -> set.insert(inner_acc, d)
+              }
+            }
             Some(fact.Int(eid_val)), Some(val) -> {
               let d = fact.Datom(entity: fact.EntityId(eid_val), attribute: r.head.1, value: val, tx: 0, operation: fact.Assert)
               case set.contains(all_derived, d) {
@@ -185,6 +192,8 @@ fn solve_positive(
   let v_val = resolve_part(v_p, ctx)
 
   let base_datoms = case e_val, v_val {
+    Some(fact.Ref(fact.EntityId(e))), Some(v) -> index.get_datoms_by_entity_attr_val(db_state.eavt, fact.EntityId(e), attr, v)
+    Some(fact.Ref(fact.EntityId(e))), None -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
     Some(fact.Int(e)), Some(v) -> index.get_datoms_by_entity_attr_val(db_state.eavt, fact.EntityId(e), attr, v)
     Some(fact.Int(e)), None -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
     None, Some(v) -> index.get_datoms_by_val(db_state.aevt, attr, v)
@@ -198,8 +207,8 @@ fn solve_positive(
     let b = ctx
     let b = case e_p { 
       types.Var(n) -> {
-        let fact.EntityId(eid_int) = d.entity
-        dict.insert(b, n, fact.Int(eid_int))
+        let id_val = fact.Ref(d.entity)
+        dict.insert(b, n, id_val)
       }
       _ -> b 
     }
@@ -238,6 +247,14 @@ fn solve_clause_with_derived(
       let base_datoms = case db_state.ets_name {
         Some(name) -> {
           case e_val, v_val {
+            Some(fact.Ref(fact.EntityId(e))), Some(v) -> {
+              ets_index.lookup_datoms(name <> "_eavt", fact.EntityId(e))
+              |> list.filter(fn(d: fact.Datom) { d.attribute == attr && d.value == v })
+            }
+            Some(fact.Ref(fact.EntityId(e))), None -> {
+              ets_index.lookup_datoms(name <> "_eavt", fact.EntityId(e))
+              |> list.filter(fn(d: fact.Datom) { d.attribute == attr })
+            }
             Some(fact.Int(e)), Some(v) -> {
               ets_index.lookup_datoms(name <> "_eavt", fact.EntityId(e))
               |> list.filter(fn(d: fact.Datom) { d.attribute == attr && d.value == v })
@@ -258,6 +275,8 @@ fn solve_clause_with_derived(
         }
         None -> {
           case e_val, v_val {
+            Some(fact.Ref(fact.EntityId(e))), Some(v) -> index.get_datoms_by_entity_attr_val(db_state.eavt, fact.EntityId(e), attr, v)
+            Some(fact.Ref(fact.EntityId(e))), None -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
             Some(fact.Int(e)), Some(v) -> index.get_datoms_by_entity_attr_val(db_state.eavt, fact.EntityId(e), attr, v)
             Some(fact.Int(e)), None -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
             None, Some(v) -> index.get_datoms_by_val(db_state.aevt, attr, v)
@@ -271,6 +290,10 @@ fn solve_clause_with_derived(
         |> list.filter(fn(d) {
           let attr_match = d.attribute == attr
           let e_match = case e_val { 
+            Some(fact.Ref(fact.EntityId(e))) -> {
+              let fact.EntityId(eid_int) = d.entity
+              eid_int == e
+            }
             Some(fact.Int(e)) -> {
               let fact.EntityId(eid_int) = d.entity
               eid_int == e
@@ -299,8 +322,8 @@ fn solve_clause_with_derived(
         let b = ctx
         let b = case e_p { 
           types.Var(n) -> {
-            let fact.EntityId(eid_int) = d.entity
-            dict.insert(b, n, fact.Int(eid_int))
+            let id_val = fact.Ref(d.entity)
+            dict.insert(b, n, id_val)
           }
           _ -> b 
         }
@@ -346,6 +369,8 @@ fn solve_triple_with_derived(
   let v_val = resolve_part(v_p, ctx)
 
   let base_datoms = case e_val, v_val {
+    Some(fact.Ref(fact.EntityId(e))), Some(v) -> index.get_datoms_by_entity_attr_val(db_state.eavt, fact.EntityId(e), attr, v)
+    Some(fact.Ref(fact.EntityId(e))), None -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
     Some(fact.Int(e)), Some(v) -> index.get_datoms_by_entity_attr_val(db_state.eavt, fact.EntityId(e), attr, v)
     Some(fact.Int(e)), None -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
     None, Some(v) -> index.get_datoms_by_val(db_state.aevt, attr, v)
@@ -357,6 +382,10 @@ fn solve_triple_with_derived(
     |> list.filter(fn(d) {
       let attr_match = d.attribute == attr
       let e_match = case e_val { 
+        Some(fact.Ref(fact.EntityId(e))) -> {
+          let fact.EntityId(eid_int) = d.entity
+          eid_int == e
+        }
         Some(fact.Int(e)) -> {
           let fact.EntityId(eid_int) = d.entity
           eid_int == e
@@ -385,8 +414,8 @@ fn solve_triple_with_derived(
     let b = ctx
     let b = case e_p { 
       types.Var(n) -> {
-        let fact.EntityId(eid_int) = d.entity
-        dict.insert(b, n, fact.Int(eid_int))
+        let id_val = fact.Ref(d.entity)
+        dict.insert(b, n, id_val)
       }
       _ -> b 
     }
@@ -562,7 +591,10 @@ fn solve_similarity(
         False -> []
       }
     }
-    _ -> {
+    // If bound but NOT a vector, it can't match.
+    Ok(_) -> []
+    // Similarity as a SOURCE clause (Unbound variable)
+    Error(Nil) -> {
       let matching_datoms = index.get_all_datoms_avet(db_state.avet)
         |> list.filter_map(fn(d: fact.Datom) {
           case d.value {
@@ -635,6 +667,10 @@ pub fn pull(
       Nested(name, sub_pattern) -> {
         let values = list.filter(datoms, fn(d: fact.Datom) { d.attribute == name }) |> list.map(fn(d) { d.value })
         case values {
+          [fact.Ref(eid)] -> {
+            let res = pull(db_state, fact.Uid(eid), sub_pattern)
+            dict.insert(acc, name, res)
+          }
           [fact.Int(sub_id)] -> {
             let res = pull(db_state, fact.Uid(fact.EntityId(sub_id)), sub_pattern)
             dict.insert(acc, name, res)
@@ -642,6 +678,7 @@ pub fn pull(
           [_, ..] -> {
             let res_list = list.map(values, fn(v) {
               case v {
+                fact.Ref(eid) -> pull(db_state, fact.Uid(eid), sub_pattern)
                 fact.Int(sub_id) -> pull(db_state, fact.Uid(fact.EntityId(sub_id)), sub_pattern)
                 _ -> Single(v)
               }

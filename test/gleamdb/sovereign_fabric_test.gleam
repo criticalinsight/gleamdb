@@ -2,7 +2,7 @@ import gleeunit/should
 import gleam/dict
 import gleam/list
 import gleamdb.{p}
-import gleamdb/fact.{AttributeConfig, EntityId, Int, Str}
+import gleamdb/fact.{All, AttributeConfig, Int, Str}
 import gleamdb/shared/types
 import gleamdb/engine.{Wildcard, Nested}
 
@@ -10,9 +10,9 @@ pub fn sovereign_fabric_test() {
   let db = gleamdb.new()
   
   // 1. Setup Schema for components
-  let assert Ok(_) = gleamdb.set_schema(db, "user/name", AttributeConfig(unique: True, component: False))
-  let assert Ok(_) = gleamdb.set_schema(db, "user/profile", AttributeConfig(unique: False, component: True))
-  let assert Ok(_) = gleamdb.set_schema(db, "profile/bio", AttributeConfig(unique: False, component: False))
+  let assert Ok(_) = gleamdb.set_schema(db, "user/name", AttributeConfig(unique: True, component: False, retention: All))
+  let assert Ok(_) = gleamdb.set_schema(db, "user/profile", AttributeConfig(unique: False, component: True, retention: All))
+  let assert Ok(_) = gleamdb.set_schema(db, "profile/bio", AttributeConfig(unique: False, component: False, retention: All))
   
   // 2. Transact initial state (TX 1)
   let assert Ok(_) = gleamdb.transact(db, [

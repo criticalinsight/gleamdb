@@ -36,7 +36,7 @@ pub fn join_optimization_test() {
     gleamdb.p(#(Var("e"), "val", Var("v")))
   ])
   
-  should.equal(result, [dict.from_list([#("e", Int(101)), #("v", Int(999))])])
+  should.equal(result, [dict.from_list([#("e", fact.Ref(fact.EntityId(101))), #("v", Int(999))])])
 }
 
 pub fn large_recursion_benchmark_test() {
