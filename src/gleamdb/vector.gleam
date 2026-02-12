@@ -23,3 +23,30 @@ pub fn cosine_similarity(v1: List(Float), v2: List(Float)) -> Float {
     False -> dot_product(v1, v2) /. { mag1 *. mag2 }
   }
 }
+
+/// L2 (Euclidean) distance between two vectors.
+pub fn euclidean_distance(v1: List(Float), v2: List(Float)) -> Float {
+  let sum_sq = list.zip(v1, v2)
+    |> list.fold(0.0, fn(acc, pair) {
+      let diff = pair.0 -. pair.1
+      acc +. { diff *. diff }
+    })
+  case float.square_root(sum_sq) {
+    Ok(d) -> d
+    Error(_) -> 0.0
+  }
+}
+
+/// Normalize a vector to unit length.
+pub fn normalize(v: List(Float)) -> List(Float) {
+  let mag = magnitude(v)
+  case mag == 0.0 {
+    True -> v
+    False -> list.map(v, fn(x) { x /. mag })
+  }
+}
+
+/// Number of dimensions.
+pub fn dimensions(v: List(Float)) -> Int {
+  list.length(v)
+}

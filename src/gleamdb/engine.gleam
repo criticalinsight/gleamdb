@@ -8,10 +8,11 @@ import gleam/float
 import gleam/string
 import gleam/order
 import gleamdb/fact
+import gleamdb/vector
+import gleamdb/vec_index
 import gleamdb/shared/types
 import gleamdb/index
 import gleamdb/index/ets as ets_index
-import gleamdb/vector
 
 pub type Rule {
   Rule(head: types.Clause, body: List(types.BodyClause))
@@ -594,24 +595,40 @@ fn solve_similarity(
     // If bound but NOT a vector, it can't match.
     Ok(_) -> []
     // Similarity as a SOURCE clause (Unbound variable)
+    // Use NSW vec_index for O(log N) search, fallback to AVET if empty.
     Error(Nil) -> {
-      let matching_datoms = index.get_all_datoms_avet(db_state.avet)
-        |> list.filter_map(fn(d: fact.Datom) {
-          case d.value {
-            fact.Vec(v) -> {
-              let dist = vector.cosine_similarity(vec, v)
-              case dist >=. threshold {
-                True -> Ok(d)
-                False -> Error(Nil)
-              }
+      case vec_index.size(db_state.vec_index) > 0 {
+        True -> {
+          // Use graph-accelerated ANN search
+          let results = vec_index.search(db_state.vec_index, vec, threshold, 100)
+          list.filter_map(results, fn(r) {
+            case dict.get(db_state.vec_index.nodes, r.entity) {
+              Ok(v) -> Ok(dict.insert(ctx, var, fact.Vec(v)))
+              Error(Nil) -> Error(Nil)
             }
-            _ -> Error(Nil)
-          }
-        })
-      
-      list.map(matching_datoms, fn(d: fact.Datom) {
-        dict.insert(ctx, var, d.value)
-      })
+          })
+        }
+        False -> {
+          // Fallback: brute-force AVET scan
+          let matching_datoms = index.get_all_datoms_avet(db_state.avet)
+            |> list.filter_map(fn(d: fact.Datom) {
+              case d.value {
+                fact.Vec(v) -> {
+                  let dist = vector.cosine_similarity(vec, v)
+                  case dist >=. threshold {
+                    True -> Ok(d)
+                    False -> Error(Nil)
+                  }
+                }
+                _ -> Error(Nil)
+              }
+            })
+          
+          list.map(matching_datoms, fn(d: fact.Datom) {
+            dict.insert(ctx, var, d.value)
+          })
+        }
+      }
     }
   }
 }

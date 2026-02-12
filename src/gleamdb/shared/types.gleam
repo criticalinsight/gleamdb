@@ -5,6 +5,7 @@ import gleamdb/fact.{type AttributeConfig, type Datom, type DbFunction}
 import gleamdb/index.{type Index, type AIndex, type AVIndex}
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/raft
+import gleamdb/vec_index
 
 pub type DbState {
   DbState(
@@ -22,6 +23,7 @@ pub type DbState {
     is_distributed: Bool,
     ets_name: Option(String),
     raft_state: raft.RaftState,
+    vec_index: vec_index.VecIndex,
   )
 }
 

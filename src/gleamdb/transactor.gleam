@@ -15,6 +15,7 @@ import gleamdb/reactive
 import gleamdb/index/ets as ets_index
 import gleamdb/process_extra
 import gleamdb/raft
+import gleamdb/vec_index
 
 pub type Message {
   Transact(List(fact.Fact), process.Subject(Result(types.DbState, String)))
@@ -109,6 +110,7 @@ fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name:
       is_distributed: is_distributed,
       ets_name: ets_name,
       raft_state: raft.new([]),
+      vec_index: vec_index.new(),
     )
 
   let initial_state = recover_state(base_state)
@@ -585,19 +587,29 @@ fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
 
   case datom.operation {
     fact.Assert -> {
+      let new_vec_idx = case datom.value {
+        fact.Vec(v) -> vec_index.insert(state.vec_index, datom.entity, v)
+        _ -> state.vec_index
+      }
       types.DbState(
         ..state,
         eavt: index.insert_eavt(state.eavt, datom, retention),
         aevt: index.insert_aevt(state.aevt, datom, retention),
-        avet: index.insert_avet(state.avet, datom)
+        avet: index.insert_avet(state.avet, datom),
+        vec_index: new_vec_idx,
       )
     }
     fact.Retract -> {
+      let new_vec_idx = case datom.value {
+        fact.Vec(_) -> vec_index.delete(state.vec_index, datom.entity)
+        _ -> state.vec_index
+      }
       types.DbState(
         ..state,
         eavt: index.delete_eavt(state.eavt, datom),
         aevt: index.delete_aevt(state.aevt, datom),
-        avet: index.delete_avet(state.avet, datom)
+        avet: index.delete_avet(state.avet, datom),
+        vec_index: new_vec_idx,
       )
     }
   }

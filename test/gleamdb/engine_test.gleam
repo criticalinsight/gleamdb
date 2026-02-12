@@ -8,6 +8,7 @@ import gleamdb/engine
 import gleamdb/storage
 import gleamdb/reactive
 import gleamdb/raft
+import gleamdb/vec_index
 
 pub fn engine_run_test() {
   let assert Ok(reactive_subject) = reactive.start_link()
@@ -27,6 +28,7 @@ pub fn engine_run_test() {
       is_distributed: False,
       ets_name: None,
       raft_state: raft.new([]),
+      vec_index: vec_index.new(),
     )
 
   let query = [types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice"))))]
@@ -52,6 +54,7 @@ pub fn pull_test() {
       is_distributed: False,
       ets_name: None,
       raft_state: raft.new([]),
+      vec_index: vec_index.new(),
     )
   let res = engine.pull(state, fact.Uid(fact.EntityId(1)), [engine.Wildcard])
   let assert engine.Map(m) = res
