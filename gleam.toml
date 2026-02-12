@@ -1,5 +1,5 @@
 name = "gleamdb"
-version = "1.4.0"
+version = "1.5.0"
 description = "A high-performance, analytical Datalog engine for Gleam"
 licences = ["Apache-2.0"]
 
