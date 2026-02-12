@@ -6,7 +6,7 @@ import gleam/list
 import gleamdb/transactor
 import gleamdb/engine
 import gleamdb/fact.{type AttributeConfig, type Fact}
-import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Positive, Subscribe, Initial}
+import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Positive, Subscribe}
 import gleamdb/index
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/global

@@ -6,7 +6,7 @@ import gleam/result
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleamdb/fact
-import gleamdb/shared/types
+import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult, Positive, Subscribe}
 import gleamdb/engine
 import gleamdb/index
 import gleamdb/storage
@@ -77,7 +77,7 @@ pub fn start_distributed(
 
 pub fn start_with_timeout(
   store: storage.StorageAdapter,
-  timeout_ms: Int,
+  _timeout_ms: Int,
 ) -> Result(process.Subject(Message), actor.StartError) {
   do_start_named(store, False, None)
 }
