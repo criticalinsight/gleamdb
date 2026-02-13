@@ -17,7 +17,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **Vector Sovereignty**: Native similarity search via NSW (Navigable Small-World) graph index — O(log N).
 - **Raft HA**: Term-based leader election for zero-downtime failover.
 - **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Native `phash2` support enables deterministic Entity IDs for **Idempotent Transactions**.
-- **Native Sharding**: Horizontal partition facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware (M2 Pro).
+- **Native Sharding (v1.7.0)**: Horizontal partition of facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware. Each shard is an isolated Raft consensus group.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
 
@@ -35,7 +35,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 Add `gleamdb` to your `gleam.toml`:
 ```toml
 [dependencies]
-gleamdb = { path = "../gleamdb" }
+gleamdb = "1.7.0"
 ```
 
 Initialize with **Silicon Saturation** (ETS-backed indices) for O(1) concurrent reads:
@@ -54,8 +54,25 @@ import gleamdb/fact.{Uid, EntityId, Str}
 
 let assert Ok(state) = gleamdb.transact(db, [
   #(Uid(EntityId(101)), "user/name", Str("Alice")),
+  #(Uid(EntityId(101)), "user/name", Str("Alice")),
   #(Uid(EntityId(101)), "user/role", Str("Admin"))
 ])
+```
+
+### Native Shareded Ingestion (v1.7.0)
+Saturate all cores by partitioning writes:
+```gleam
+import gleamdb/sharded
+
+// Initialize cluster with 8 shards
+let assert Ok(cluster) = sharded.start_link("my_cluster", 8)
+
+// Batch ingest (automatically routed to correct shard)
+let facts = [
+  #(Uid(EntityId(101)), "user/name", Str("Alice")),
+  #(Uid(EntityId(202)), "user/name", Str("Bob"))
+]
+let assert Ok(_) = sharded.batch_ingest(cluster, facts)
 ```
 
 ### Datalog Query

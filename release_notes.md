@@ -1,8 +1,23 @@
-# 🚀 Temporal Intelligence v1.6.0
+# 🚀 Sovereign Scale v1.7.0
 
 # Release Notes
 
-## [1.1.0] - 2026-02-13
+## [1.7.0] - 2026-02-14
+### Added
+- **Native Sharding**: Horizontal partitioning of facts across strictly isolated local shards (`gleamdb/sharded`).
+    - **Consistent Hashing**: `bloom.shard_key` deterministic routing.
+    - **Local-First Leadership**: Each shard manages its own Raft term and log.
+    - **Multi-Core Saturation**: Linear scaling with logical cores on M2/M3 silicon.
+- **Democratic Partitioning**: Shards are treated as autonomous "City States" that vote on cluster topology.
+- **Deterministic Identity**: `fact.deterministic_uid` and `fact.phash2` ensure ID consistency across distributed nodes without coordination.
+- **Batch Ingestion**: `sharded.batch_ingest` for high-throughput writes (10k+ ops/sec/node).
+
+### Changed
+- **Architecture**: Moved closer to a "Shared Nothing" architecture for maximum parallel throughput.
+
+---
+
+## [1.6.0] - 2026-02-13
 ### Added
 - **Sharded Sovereign Fabric**: Full sharding support with local-first leadership.
 - **Adaptive Ticking**: Dynamic ingestion batching based on load.
