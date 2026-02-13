@@ -54,3 +54,12 @@ Building prediction markets intelligence on GleamDB surfaced critical friction p
 
 ## Impact Analysis
 Implementing #1 (Temporal) and #6 (Top-K) would eliminate ~40% of the data-handling boilerplate in the Gswarm Analyst and Resolution modules.
+## 8. Probabilistic Monitoring & Load Management
+**Problem**: In high-throughput sharded environments, tracking the activity of every single market exactly is CPU/RAM intensive.
+**Requirement**:
+- **Bloom Filter Integration**: Native support in the query planner for shard pruning. (Phase 43).
+- **Probabilistic Metrics**: Count-Min Sketch for frequency and HyperLogLog for cardinality should be first-class citizens in the Database Registry or Actor layer. (Phase 44).
+- **Adaptive Batching**: The database should provide feedback on disk latency to the ingestors to adjust batch sizes dynamically.
+
+## 9. Arity-Stability in Core APIs
+**Observation**: Frequent compiler updates (like the `int.range` transition) can break core logic in sharded environments. GleamDB should prioritize stable, consistent APIs for ranges and folds to prevent build breakage during high-load phases.

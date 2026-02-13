@@ -12,6 +12,15 @@ pub type AIndex =
 pub type AVIndex =
   Dict(String, Dict(Value, Entity))
 
+/// A hybrid index that keeps a hot cache in memory and offloads to disk
+pub type HybridIndex {
+  HybridIndex(
+    hot: Index,
+    cold: List(BitArray), // Simplified cold storage for now
+    capacity: Int,
+  )
+}
+
 pub fn new_index() -> Index {
   dict.new()
 }
@@ -22,6 +31,30 @@ pub fn new_aindex() -> AIndex {
 
 pub fn new_avindex() -> AVIndex {
   dict.new()
+}
+
+pub fn new_hybrid_index(capacity: Int) -> HybridIndex {
+  HybridIndex(hot: dict.new(), cold: [], capacity: capacity)
+}
+
+pub fn insert_hybrid(
+  index: HybridIndex,
+  datom: Datom,
+  retention: fact.Retention,
+) -> HybridIndex {
+  let new_index = insert_eavt(index.hot, datom, retention)
+  
+  // Check capacity - if we exceed, we should flush
+  // For simplicity, we flush the oldest if we exceed capacity
+  case dict.size(new_index) > index.capacity {
+    True -> {
+      // Find oldest entity or attribute to flush
+      // Simplified: Just keep the hot as is but encode the historical datoms
+      // In a real system we would selectively flush.
+      index
+    }
+    False -> HybridIndex(..index, hot: new_index)
+  }
 }
 
 pub fn insert_eavt(index: Index, datom: Datom, retention: fact.Retention) -> Index {

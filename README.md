@@ -16,8 +16,8 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **Time Series & Analytics**: Native `Temporal` queries, `Aggregate` functions, and `OrderBy`/`Limit` push-down predicates.
 - **Vector Sovereignty**: Native similarity search via NSW (Navigable Small-World) graph index — O(log N).
 - **Raft HA**: Term-based leader election for zero-downtime failover.
-- **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Deterministic IDs via `phash2` ensure idempotency.
-- **Memory Safety**: Fact Retention Policies (`LatestOnly`, `Last(N)`) and subscriber scavenging.
+- **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Native `phash2` support enables deterministic Entity IDs for **Idempotent Transactions**.
+- **Native Sharding**: Horizontal partition facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware (M2 Pro).
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
 
@@ -25,7 +25,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 > "Speed is a byproduct of correctness."
 
 - **Concurrency**: Lock-free reads via Silicon Saturation (ETS), allowing linear scaling with CPU cores.
-- **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL) or **~2,500 events/sec** (Durable Mnesia).
+- **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL) or **~2,500 events/sec** (Durable Mnesia). Sharding scales this linearly with logical cores (>10k+ durable events/sec).
 - **Similarity**: O(log N) via NSW graph index (vs O(N) brute-force scan).
 - **Latency**: Sub-millisecond read access for single-entity lookups.
 

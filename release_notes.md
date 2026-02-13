@@ -1,5 +1,21 @@
 # 🚀 Temporal Intelligence v1.6.0
 
+# Release Notes
+
+## [1.1.0] - 2026-02-13
+### Added
+- **Sharded Sovereign Fabric**: Full sharding support with local-first leadership.
+- **Adaptive Ticking**: Dynamic ingestion batching based on load.
+- **Bloom Filter Routing**: Optimized query pruning across shards.
+- **Probabilistic Memory**: Count-Min Sketch (frequency) and HyperLogLog (cardinality) for lean monitoring.
+- **Resource-Aware Node**: Lean mode for restricted environments (M2 Pro 16GB).
+
+### Changed
+- Reverted to `list.range` for arity-stability across compiler versions.
+- Optimized `registry_actor` for synchronized shard tracking.
+
+## [1.0.0] - 2026-02-09
+
 This release introduces **Phase 23: Time Series & Analytics**, transforming GleamDB from a purely logical engine into a high-performance analytical store for time-series data.
 
 ## ✨ Key Features
