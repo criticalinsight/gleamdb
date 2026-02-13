@@ -1,6 +1,12 @@
-# 🚀 Sovereign Scale v1.7.0
+# 🚀 Sovereign Scale v1.7.1
 
 # Release Notes
+
+## [1.7.1] - 2026-02-14
+### Documentation
+- Updated `README.md` with Sharding examples.
+- Completed Phase 25 in `roadmap_vnext.md` & `gap_analysis.md`.
+- Added `performance_guide.md` benchmarks for native sharding.
 
 ## [1.7.0] - 2026-02-14
 ### Added
