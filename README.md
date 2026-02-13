@@ -13,9 +13,10 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 
 ## 🚀 Key Features
 - **Silicon Saturation**: Lock-free, concurrent read indices via ETS (O(1) access).
+- **Time Series & Analytics**: Native `Temporal` queries, `Aggregate` functions, and `OrderBy`/`Limit` push-down predicates.
 - **Vector Sovereignty**: Native similarity search via NSW (Navigable Small-World) graph index — O(log N).
 - **Raft HA**: Term-based leader election for zero-downtime failover.
-- **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity from data at the type level.
+- **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Deterministic IDs via `phash2` ensure idempotency.
 - **Memory Safety**: Fact Retention Policies (`LatestOnly`, `Last(N)`) and subscriber scavenging.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
@@ -80,6 +81,24 @@ let query = [
   Similarity(Var("market"), [0.1, 0.2, 0.3], 0.9)
 ]
 let results = gleamdb.query(db, query)
+```
+
+### Time Series & Analytics (Phase 23)
+Efficiently query historical data with temporal bounds, ordering, and aggregation:
+
+```gleam
+import gleamdb/shared/types.{Temporal, OrderBy, Limit, Var, Val, Asc}
+
+// Get the last 100 ticks for a market, ordered by time
+let query = 
+  q.new()
+  |> q.where(Var("t"), "tick/market", Val(market_ref))
+  |> q.where(Var("t"), "tick/price", Var("price"))
+  |> q.where(Var("t"), "tick/timestamp", Var("ts"))
+  |> q.order_by("ts", Asc)
+  |> q.limit(100)
+  |> q.to_clauses
+```
 ```
 
 ### Memory Safety (Retention)

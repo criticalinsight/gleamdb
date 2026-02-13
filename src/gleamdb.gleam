@@ -11,6 +11,7 @@ import gleamdb/index
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/global
 import gleamdb/process_extra
+import gleamdb/raft
 
 pub type Db = transactor.Db
 pub type PullResult = engine.PullResult
@@ -175,4 +176,9 @@ pub fn subscribe(
   process.send(state.reactive_actor, msg)
   process.send(subscriber, types.Initial(results))
   Nil
+}
+
+pub fn is_leader(db: Db) -> Bool {
+  let state = transactor.get_state(db)
+  raft.is_leader(state.raft_state)
 }

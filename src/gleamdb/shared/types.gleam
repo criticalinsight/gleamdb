@@ -46,7 +46,18 @@ pub type BodyClause {
     target: String,
     filter: List(BodyClause),
   )
+
   Similarity(variable: String, vector: List(Float), threshold: Float)
+  Temporal(variable: String, entity: Part, attribute: String, start: Int, end: Int)
+  Limit(n: Int)
+  Offset(n: Int)
+  OrderBy(variable: String, direction: OrderDirection)
+  GroupBy(variable: String)
+}
+
+pub type OrderDirection {
+  Asc
+  Desc
 }
 
 pub type AggFunc {

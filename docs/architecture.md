@@ -110,5 +110,13 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 *   **Innovation:** The state machine is pure — it returns `#(RaftState, List(RaftEffect))`. The transactor interprets the effects (send heartbeats, register leader, manage timers). This separates the election *logic* from the *mechanism*.
 *   **Result:** Term-based voting, heartbeat-driven liveness, majority quorum for leader promotion, and automatic step-down on higher terms.
 
+### Phase 23: Time Series & Analytics (Push-Down Predicates)
+*   **The Problem:** Analytical queries (e.g., "last 100 ticks", "average price") required fetching *all* data to the client for filtering/sorting, causing massive O(N) serialization overhead.
+*   **The Solution:** Implemented **Push-Down Predicates** in the query engine.
+    1.  **`OrderBy` & `Limit`**: Sorting and pagination happen *during* the query plan execution, minimizing data transfer.
+    2.  **`Aggregate`**: Server-side calculation of Sum, Avg, Min, Max, Count.
+    3.  **`Temporal`**: Native range queries on integer timestamps.
+*   **Result:** O(Limit) data transfer instead of O(Total). Gswarm enables "Entity-per-Tick" modeling without performance penalty.
+
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

@@ -43,9 +43,31 @@ pub fn run(
   let initial_context = [dict.new()]
   
   list.fold(clauses, initial_context, fn(contexts, clause) {
-    list.flat_map(contexts, fn(ctx) {
-      solve_clause_with_derived(db_state, clause, ctx, all_derived, as_of_tx)
-    })
+    case clause {
+      types.Limit(n) -> list.take(contexts, n)
+      types.Offset(n) -> list.drop(contexts, n)
+      types.OrderBy(var, dir) -> {
+        list.sort(contexts, fn(a, b) {
+          let val_a = dict.get(a, var) |> result.unwrap(fact.Int(0))
+          let val_b = dict.get(b, var) |> result.unwrap(fact.Int(0))
+          let ord = compare_values(val_a, val_b)
+          case dir {
+            types.Asc -> ord
+            types.Desc -> case ord {
+              order.Lt -> order.Gt
+              order.Gt -> order.Lt
+              order.Eq -> order.Eq
+            }
+          }
+        })
+      }
+      types.GroupBy(_) -> contexts // Placeholder for now or strictly aggregation
+      normal_clause -> {
+        list.flat_map(contexts, fn(ctx) {
+          solve_clause_with_derived(db_state, normal_clause, ctx, all_derived, as_of_tx)
+        })
+      }
+    }
   })
   |> list.unique()
 }
@@ -180,6 +202,8 @@ fn solve_clause(
       let val = f(ctx)
       [dict.insert(ctx, var, val)]
     }
+    types.Temporal(var, entity, attr, start, end) -> solve_temporal(db_state, var, entity, attr, start, end, ctx)
+    _ -> [ctx]
   }
 }
 
@@ -355,6 +379,8 @@ fn solve_clause_with_derived(
       let val = f(ctx)
       [dict.insert(ctx, var, val)]
     }
+    types.Temporal(var, entity, attr, start, end) -> solve_temporal(db_state, var, entity, attr, start, end, ctx)
+    _ -> [ctx]
   }
 }
 
@@ -711,4 +737,29 @@ pub fn pull(
     }
   })
   Map(m)
+}
+
+fn solve_temporal(
+  db_state: types.DbState,
+  var: String,
+  e_p: types.Part,
+  attr: String,
+  start: Int,
+  end: Int,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let e_val = resolve_part(e_p, ctx)
+  
+  let base_datoms = case e_val {
+    Some(fact.Ref(fact.EntityId(e))) -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
+    Some(fact.Int(e)) -> index.get_datoms_by_entity_attr(db_state.eavt, fact.EntityId(e), attr)
+    _ -> []
+  }
+
+  base_datoms
+  |> filter_active()
+  |> list.filter(fn(d) { d.tx >= start && d.tx <= end })
+  |> list.map(fn(d) {
+    dict.insert(ctx, var, d.value)
+  })
 }

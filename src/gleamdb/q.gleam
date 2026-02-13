@@ -104,6 +104,43 @@ pub fn similar(
   QueryBuilder(clauses: list.append(builder.clauses, [clause]))
 }
 
+/// Temporal range query
+pub fn temporal(
+  builder: QueryBuilder,
+  variable: String,
+  entity: types.Part,
+  attr: String,
+  start: Int,
+  end: Int,
+) -> QueryBuilder {
+  let clause = types.Temporal(variable, entity, attr, start, end)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Limit results
+pub fn limit(builder: QueryBuilder, n: Int) -> QueryBuilder {
+  let clause = types.Limit(n)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Offset results
+pub fn offset(builder: QueryBuilder, n: Int) -> QueryBuilder {
+  let clause = types.Offset(n)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Order results
+pub fn order_by(builder: QueryBuilder, variable: String, direction: types.OrderDirection) -> QueryBuilder {
+  let clause = types.OrderBy(variable, direction)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Group By (Placeholder/Future)
+pub fn group_by(builder: QueryBuilder, variable: String) -> QueryBuilder {
+  let clause = types.GroupBy(variable)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
 /// Convert builder to a list of clauses for `gleamdb.query`.
 pub fn to_clauses(builder: QueryBuilder) -> List(BodyClause) {
   builder.clauses
