@@ -4,7 +4,7 @@ GleamDB supports a leader-follower distribution model powered by the BEAM's nati
 
 ## Architecture
 
-The fabric uses a single leader for all transactions, while followers maintain real-time replicas for local-first reads and reactive updates.
+The fabric uses a **Democratic Partitioning** model. The keyspace is divided into `N` shards, and each shard operates as an independent Raft cluster.
 
 - **Leader Election**: Raft-inspired state machine (`raft.gleam`) handles term-based voting, heartbeat liveness, and majority quorum. De-complected from replication.
 - **Forwarding**: Any transaction arriving at a follower is automatically forwarded to the current leader.

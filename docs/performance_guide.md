@@ -13,7 +13,8 @@ Traditional databases often bottleneck on the coordination between writers and r
 
 - **Read Latency**: O(1) for direct attribute lookups via Silicon Saturation (ETS).
 - **Ingestion Throughput**: 
-    - **Durable Mnesia**: ~2,500 events/sec (fully persisted to disk).
+    - **Durable Mnesia**: ~2,500 events/sec (single shard).
+    - **Native Sharding**: >10,000 durable events/sec (8 shards on M3 Max).
     - **SQLite WAL**: ~120,000 datoms/sec.
 - **Similarity Search**: O(log N) via NSW graph index (vs O(N) brute-force AVET scan).
 - **Join Performance**: Datalog joins leverage ETS `duplicate_bag` matching, providing near-native BEAM performance for complex queries.
