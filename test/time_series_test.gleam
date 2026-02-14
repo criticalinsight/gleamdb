@@ -13,7 +13,7 @@ pub fn temporal_pagination_test() {
   let uid = fact.Uid(eid)
   
   // Insert 100 ticks with increasing timestamps
-  let ticks = list.range(1, 100) |> list.map(fn(i) {
+  let ticks = int.range(from: 1, to: 101, with: [], run: fn(acc, i) { [i, ..acc] }) |> list.reverse() |> list.map(fn(i) {
     fact.Datom(entity: eid, attribute: "tick/price", value: fact.Int(i), tx: i, valid_time: 0, operation: fact.Assert)
   })
   
@@ -58,7 +58,7 @@ pub fn limit_offset_order_test() {
   let uid = fact.Uid(fact.EntityId(2))
   
   // Insert 10 values: 10, 20, ... 100
-  list.range(1, 10) |> list.each(fn(i) {
+  int.range(from: 1, to: 11, with: [], run: fn(acc, i) { [i, ..acc] }) |> list.reverse() |> list.each(fn(i) {
     let f = #(uid, "val", fact.Int(i * 10))
     let _ = gleamdb.transact(db, [f])
     Nil
@@ -105,7 +105,7 @@ pub fn aggregate_test() {
   let uid = fact.Uid(fact.EntityId(3))
   
   // Insert 5 values: 10, 20, 30, 40, 50
-  list.range(1, 5) |> list.each(fn(i) {
+  int.range(from: 1, to: 6, with: [], run: fn(acc, i) { [i, ..acc] }) |> list.reverse() |> list.each(fn(i) {
     let f = #(uid, "score", fact.Int(i * 10))
     let _ = gleamdb.transact(db, [f])
     Nil

@@ -25,7 +25,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **Speculative Soul (Phase 27)**: Treat the database as a pure value with `gleamdb.with_facts` — non-persistent, what-if state transitions.
 - **Enhanced Pull**: Selective exclusion (`pull_except`) and automated graph recursion (`pull_recursive`).
 - **Logical Navigator (Phase 28)**: Cost-based query planner that automatically reorders join clauses for optimal performance.
-- **Sovereign Intelligence (Phase 31)**: Next-gen analytics with **Distributed Aggregates** (`Sum`, `Avg`, `Median`) and **Parallel Query Execution** (auto-sharding for >500 items).
+- **Sovereign Intelligence (Phase 31)**: Next-gen analytics with **Distributed Aggregates** (`Sum`, `Avg`, `Median`) and **Parallel Query Execution** with configurable thresholds via `Config` type.
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
 
 ## ⚡ Performance

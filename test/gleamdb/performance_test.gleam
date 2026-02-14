@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/int
 import gleamdb
 import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
 import gleamdb/shared/types.{Rule, Val, Var}
@@ -16,7 +17,7 @@ pub fn join_optimization_test() {
   let db = gleamdb.new()
   
   // High cardinality data
-  let facts = list.flat_map(list.range(1, 100), fn(i) {
+  let facts = list.flat_map(int.range(from: 1, to: 101, with: [], run: fn(acc, i) { [i, ..acc] }) |> list.reverse(), fn(i) {
     [
       #(fact.Uid(fact.EntityId(i)), "type", Int(0)),
       #(fact.Uid(fact.EntityId(i)), "val", Int(i))
@@ -44,7 +45,7 @@ pub fn large_recursion_benchmark_test() {
   let db = gleamdb.new()
   
   // Linear graph of 50 nodes
-  let facts = list.map(list.range(1, 49), fn(i) {
+  let facts = list.map(int.range(from: 1, to: 50, with: [], run: fn(acc, i) { [i, ..acc] }) |> list.reverse(), fn(i) {
     #(fact.Uid(fact.EntityId(i)), "parent", Int(i + 1))
   })
   

@@ -3,6 +3,7 @@ import gleam/otp/actor
 import gleam/list
 import gleam/dict
 import gleam/result
+import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleamdb/fact
@@ -32,6 +33,7 @@ pub type Message {
   SyncDatoms(List(fact.Datom))
   RaftMsg(raft.RaftMessage)
   Compact(process.Subject(Nil))
+  SetConfig(types.Config, process.Subject(Nil))
 }
 
 pub type Db =
@@ -118,6 +120,7 @@ fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name:
       predicates: dict.new(),
       stored_rules: [],
       virtual_predicates: dict.new(),
+      config: types.Config(parallel_threshold: 500, batch_size: 100),
     )
 
   let initial_state = recover_state(base_state)
@@ -301,8 +304,24 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       process.send(reply_to, Nil)
       actor.continue(state)
     }
+    SetConfig(config, reply_to) -> {
+      print_config_update(config)
+      process.send(reply_to, Nil)
+      actor.continue(types.DbState(..state, config: config))
+    }
   }
 }
+
+fn print_config_update(config: types.Config) {
+  // Simple stdout for now, would be a logger in prod
+  let msg = "Config updated: threshold=" <> int.to_string(config.parallel_threshold) <> ", batch=" <> int.to_string(config.batch_size)
+  case gleamdb_io_println(msg) {
+    _ -> Nil
+  }
+}
+
+@external(erlang, "io", "format")
+fn gleamdb_io_println(x: String) -> Nil
 
 fn is_leader(state: types.DbState) -> Bool {
   case state.is_distributed {
@@ -783,6 +802,13 @@ pub fn register_composite(db: Db, attrs: List(String)) -> Result(Nil, String) {
     Ok(res) -> res
     Error(_) -> Error("Timeout registering composite")
   }
+}
+
+pub fn set_config(db: Db, config: types.Config) -> Nil {
+  let reply = process.new_subject()
+  process.send(db, SetConfig(config, reply))
+  let _ = process.receive(reply, 5000)
+  Nil
 }
 
 fn resolve_eid(state: types.DbState, eid: fact.Eid) -> Option(fact.EntityId) {

@@ -32,6 +32,7 @@ pub fn engine_run_test() {
       predicates: dict.new(),
       stored_rules: [],
       virtual_predicates: dict.new(),
+      config: types.Config(parallel_threshold: 500, batch_size: 100),
     )
 
   let query = [types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice"))))]
@@ -61,6 +62,7 @@ pub fn pull_test() {
       predicates: dict.new(),
       stored_rules: [],
       virtual_predicates: dict.new(),
+      config: types.Config(parallel_threshold: 500, batch_size: 100),
     )
   let res = engine.pull(state, fact.Uid(fact.EntityId(1)), [engine.Wildcard])
   let assert engine.Map(m) = res

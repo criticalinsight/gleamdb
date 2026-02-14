@@ -230,6 +230,10 @@ pub fn store_rule(db: Db, rule: types.Rule) -> Result(Nil, String) {
   transactor.store_rule(db, rule)
 }
 
+pub fn set_config(db: Db, config: types.Config) -> Nil {
+  transactor.set_config(db, config)
+}
+
 pub fn subscribe(
   db: Db,
   query: List(BodyClause),

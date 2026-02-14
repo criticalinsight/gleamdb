@@ -35,6 +35,7 @@ pub fn shortest_path_test() {
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
   )
 
   // A -> B -> C
@@ -81,6 +82,7 @@ pub fn pagerank_test() {
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
   )
   
   // A -> B

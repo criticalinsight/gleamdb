@@ -51,5 +51,5 @@ pub fn explain_test() {
     
   let output = navigator.explain(clauses)
   // Should contains "Query Plan" and "Positive"
-  should.be_true(list.any(list.range(0, 0), fn(_) { True })) // Just check if it runs without panic
+  should.be_true(output != "") // Just check it runs without panic and returns something
 }

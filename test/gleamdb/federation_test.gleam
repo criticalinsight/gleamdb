@@ -43,6 +43,7 @@ pub fn virtual_predicate_test() {
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.from_list([#("users_csv", users_csv)]),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
   )
 
   // Query: find users older than 28 from the virtual predicate

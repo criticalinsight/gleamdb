@@ -7,6 +7,10 @@ import gleamdb/storage.{type StorageAdapter}
 import gleamdb/raft
 import gleamdb/vec_index
 
+pub type Config {
+  Config(parallel_threshold: Int, batch_size: Int)
+}
+
 pub type DbState {
   DbState(
     adapter: StorageAdapter,
@@ -27,6 +31,7 @@ pub type DbState {
     predicates: Dict(String, fn(fact.Value) -> Bool),
     stored_rules: List(Rule),
     virtual_predicates: Dict(String, VirtualAdapter),
+    config: Config,
   )
 }
 

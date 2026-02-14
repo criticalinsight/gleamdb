@@ -517,10 +517,11 @@ fn do_solve_clauses(
   case clauses {
     [] -> contexts
     [first, ..rest] -> {
-      let next_contexts = case list.length(contexts) > 500 {
+      let is_parallel = list.length(contexts) > db_state.config.parallel_threshold
+      let next_contexts = case is_parallel {
         True -> {
           contexts
-          |> list.sized_chunk(100)
+          |> list.sized_chunk(db_state.config.batch_size)
           |> list.map(fn(chunk) {
             let subject = process.new_subject()
             process.spawn(fn() {
