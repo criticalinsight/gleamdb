@@ -231,6 +231,7 @@ fn solve_clause(
     types.CycleDetect(edge, cycle_var) -> solve_cycle_detect(db_state, edge, cycle_var, ctx)
     types.BetweennessCentrality(edge, entity_var, score_var) -> solve_betweenness(db_state, edge, entity_var, score_var, ctx)
     types.TopologicalSort(edge, entity_var, order_var) -> solve_topological_sort(db_state, edge, entity_var, order_var, ctx)
+    types.StronglyConnectedComponents(edge, entity_var, component_var) -> solve_strongly_connected(db_state, edge, entity_var, component_var, ctx)
     _ -> [ctx]
   }
 }
@@ -415,6 +416,7 @@ fn solve_clause_with_derived(
     types.CycleDetect(edge, cycle_var) -> solve_cycle_detect(db_state, edge, cycle_var, ctx)
     types.BetweennessCentrality(edge, entity_var, score_var) -> solve_betweenness(db_state, edge, entity_var, score_var, ctx)
     types.TopologicalSort(edge, entity_var, order_var) -> solve_topological_sort(db_state, edge, entity_var, order_var, ctx)
+    types.StronglyConnectedComponents(edge, entity_var, component_var) -> solve_strongly_connected(db_state, edge, entity_var, component_var, ctx)
     _ -> [ctx]
   }
 }
@@ -967,6 +969,39 @@ fn solve_neighbors(
       })
     }
     None -> []
+  }
+}
+
+fn solve_strongly_connected(
+  db_state: types.DbState,
+  edge: String,
+  entity_var: String,
+  component_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let components = graph.strongly_connected_components(db_state, edge)
+  case dict.get(ctx, entity_var) {
+    Ok(fact.Ref(eid)) -> {
+      case dict.get(components, eid) {
+        Ok(cid) -> [dict.insert(ctx, component_var, fact.Int(cid))]
+        Error(_) -> []
+      }
+    }
+    Ok(fact.Int(eid_int)) -> {
+      let eid = fact.EntityId(eid_int)
+      case dict.get(components, eid) {
+        Ok(cid) -> [dict.insert(ctx, component_var, fact.Int(cid))]
+        Error(_) -> []
+      }
+    }
+    Error(_) -> {
+      dict.fold(components, [], fn(acc, eid, cid) {
+        let new_ctx = dict.insert(ctx, entity_var, fact.Ref(eid))
+        let new_ctx = dict.insert(new_ctx, component_var, fact.Int(cid))
+        [new_ctx, ..acc]
+      })
+    }
+    _ -> []
   }
 }
 

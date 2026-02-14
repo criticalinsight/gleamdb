@@ -524,6 +524,70 @@ pub fn topological_sort_test() {
   should.be_true(list.length(cycle_nodes) > 0)
 }
 
+pub fn strongly_connected_components_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // Cycle: A -> B -> C -> A  (one SCC)
+  // Chain: D -> E  (two separate SCCs)
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  let e = EntityId(5)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: b, attribute: "edge", value: Ref(c), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: c, attribute: "edge", value: Ref(a), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: d, attribute: "edge", value: Ref(e), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let aevt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_aevt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, aevt: aevt)
+  
+  let sccs = graph.strongly_connected_components(db_state, "edge")
+  
+  // All 5 nodes should be labeled
+  should.equal(dict.size(sccs), 5)
+  
+  // A, B, C should share the same component (mutual reachability)
+  let assert Ok(scc_a) = dict.get(sccs, a)
+  let assert Ok(scc_b) = dict.get(sccs, b)
+  let assert Ok(scc_c) = dict.get(sccs, c)
+  should.equal(scc_a, scc_b)
+  should.equal(scc_b, scc_c)
+  
+  // D and E should be in different components (no back-edge)
+  let assert Ok(scc_d) = dict.get(sccs, d)
+  let assert Ok(scc_e) = dict.get(sccs, e)
+  should.be_true(scc_d != scc_e)
+  
+  // And the cycle SCC != D's SCC
+  should.be_true(scc_a != scc_d)
+}
+
 // Helper: find index of element in list
 fn list_index(lst: List(fact.EntityId), target: fact.EntityId, idx: Int) -> Result(Int, Nil) {
   case lst {

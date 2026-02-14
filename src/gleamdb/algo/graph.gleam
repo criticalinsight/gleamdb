@@ -592,3 +592,110 @@ fn topo_kahn(
     }
   }
 }
+
+// --- StronglyConnectedComponents: Tarjan's algorithm O(V+E) ---
+
+pub type TarjanState {
+  TarjanState(
+    index: Int,
+    indices: Dict(EntityId, Int),
+    lowlinks: Dict(EntityId, Int),
+    on_stack: Set(EntityId),
+    stack: List(EntityId),
+    components: Dict(EntityId, Int),
+    comp_id: Int,
+  )
+}
+
+pub fn strongly_connected_components(
+  state: DbState,
+  edge_attr: String,
+) -> Dict(EntityId, Int) {
+  let graph = build_graph(state, edge_attr)
+  let all_nodes = get_all_nodes(graph)
+  
+  let ts = TarjanState(
+    index: 0,
+    indices: dict.new(),
+    lowlinks: dict.new(),
+    on_stack: set.new(),
+    stack: [],
+    components: dict.new(),
+    comp_id: 0,
+  )
+  
+  let final_ts = set.fold(all_nodes, ts, fn(ts, node) {
+    case dict.has_key(ts.indices, node) {
+      True -> ts
+      False -> tarjan_dfs(graph, node, ts)
+    }
+  })
+  
+  final_ts.components
+}
+
+fn tarjan_dfs(
+  graph: Graph,
+  node: EntityId,
+  ts: TarjanState,
+) -> TarjanState {
+  let ts = TarjanState(
+    ..ts,
+    indices: dict.insert(ts.indices, node, ts.index),
+    lowlinks: dict.insert(ts.lowlinks, node, ts.index),
+    index: ts.index + 1,
+    stack: [node, ..ts.stack],
+    on_stack: set.insert(ts.on_stack, node),
+  )
+  
+  let neighbors = dict.get(graph, node) |> result.unwrap([])
+  
+  let ts = list.fold(neighbors, ts, fn(ts, w) {
+    case dict.has_key(ts.indices, w) {
+      False -> {
+        // Recurse
+        let ts = tarjan_dfs(graph, w, ts)
+        let node_low = dict.get(ts.lowlinks, node) |> result.unwrap(0)
+        let w_low = dict.get(ts.lowlinks, w) |> result.unwrap(0)
+        TarjanState(..ts, lowlinks: dict.insert(ts.lowlinks, node, int.min(node_low, w_low)))
+      }
+      True -> {
+        case set.contains(ts.on_stack, w) {
+          True -> {
+            let node_low = dict.get(ts.lowlinks, node) |> result.unwrap(0)
+            let w_idx = dict.get(ts.indices, w) |> result.unwrap(0)
+            TarjanState(..ts, lowlinks: dict.insert(ts.lowlinks, node, int.min(node_low, w_idx)))
+          }
+          False -> ts
+        }
+      }
+    }
+  })
+  
+  // If node is a root of an SCC, pop stack
+  let node_low = dict.get(ts.lowlinks, node) |> result.unwrap(0)
+  let node_idx = dict.get(ts.indices, node) |> result.unwrap(-1)
+  
+  case node_low == node_idx {
+    True -> pop_scc(ts, node)
+    False -> ts
+  }
+}
+
+fn pop_scc(ts: TarjanState, root: EntityId) -> TarjanState {
+  case ts.stack {
+    [] -> ts
+    [top, ..rest] -> {
+      let ts = TarjanState(
+        ..ts,
+        stack: rest,
+        on_stack: set.delete(ts.on_stack, top),
+        components: dict.insert(ts.components, top, ts.comp_id),
+      )
+      case top == root {
+        True -> TarjanState(..ts, comp_id: ts.comp_id + 1)
+        False -> pop_scc(ts, root)
+      }
+    }
+  }
+}

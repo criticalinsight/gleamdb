@@ -113,6 +113,11 @@ pub type BodyClause {
     entity_var: String,
     order_var: String,
   )
+  StronglyConnectedComponents(
+    edge: String,
+    entity_var: String,
+    component_var: String,
+  )
 }
 
 pub type Rule {

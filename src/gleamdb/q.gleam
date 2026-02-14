@@ -210,6 +210,17 @@ pub fn neighbors(
   QueryBuilder(clauses: list.append(builder.clauses, [clause]))
 }
 
+/// Label each node with its strongly connected component ID (Tarjan's algorithm).
+pub fn strongly_connected_components(
+  builder: QueryBuilder,
+  edge: String,
+  entity_var: String,
+  component_var: String,
+) -> QueryBuilder {
+  let clause = types.StronglyConnectedComponents(edge, entity_var, component_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
 /// Detect cycles in directed graph. Each result binds a List of entity refs forming a cycle.
 pub fn cycle_detect(
   builder: QueryBuilder,
