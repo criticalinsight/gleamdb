@@ -14,7 +14,7 @@ pub fn temporal_pagination_test() {
   
   // Insert 100 ticks with increasing timestamps
   let ticks = list.range(1, 100) |> list.map(fn(i) {
-    fact.Datom(entity: eid, attribute: "tick/price", value: fact.Int(i), tx: i, operation: fact.Assert)
+    fact.Datom(entity: eid, attribute: "tick/price", value: fact.Int(i), tx: i, valid_time: 0, operation: fact.Assert)
   })
   
   // Direct low-level storage inject for testing to control TX IDs exactly

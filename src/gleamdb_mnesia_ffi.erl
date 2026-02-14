@@ -10,7 +10,7 @@ init() ->
     end,
     case mnesia:create_table(datoms, [
         {record_name, datom},
-        {attributes, [entity, attribute, value, tx, operation]},
+        {attributes, [entity, attribute, value, tx, valid_time, operation]},
         {disc_copies, [node()]}
     ]) of
         {atomic, ok} -> ok;
@@ -33,7 +33,7 @@ persist_batch(Datoms) ->
 
 recover() ->
     F = fun() ->
-        mnesia:match_object(datoms, {datom, '_', '_', '_', '_', '_'}, read)
+        mnesia:match_object(datoms, {datom, '_', '_', '_', '_', '_', '_'}, read)
     end,
     case mnesia:transaction(F) of
         {atomic, Records} -> {ok, Records};

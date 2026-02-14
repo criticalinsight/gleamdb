@@ -29,10 +29,13 @@ pub fn engine_run_test() {
       ets_name: None,
       raft_state: raft.new([]),
       vec_index: vec_index.new(),
+      predicates: dict.new(),
+      stored_rules: [],
+      virtual_predicates: dict.new(),
     )
 
   let query = [types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice"))))]
-  let results = engine.run(state, query, [], None)
+  let results = engine.run(state, query, [], None, None)
   should.equal(list.length(results), 0)
 }
 
@@ -55,6 +58,9 @@ pub fn pull_test() {
       ets_name: None,
       raft_state: raft.new([]),
       vec_index: vec_index.new(),
+      predicates: dict.new(),
+      stored_rules: [],
+      virtual_predicates: dict.new(),
     )
   let res = engine.pull(state, fact.Uid(fact.EntityId(1)), [engine.Wildcard])
   let assert engine.Map(m) = res

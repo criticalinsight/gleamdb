@@ -45,7 +45,20 @@ Adds a **Negative** clause. Matches only if the fact does *not* exist.
 |> q.negate(q.v("e"), "user/role", q.s("Admin"))
 ```
 
-### 4. Aggregates
+### 5. Advanced Predicates (Graph & Federation)
+Native logic for complex traversals and external data:
+
+- `q.shortest_path(from, to, edge, path_var)`: BFS pathfinding.
+- `q.pagerank(entity_var, edge, rank_var)`: PageRank node importance.
+- `q.virtual(predicate, args, outputs)`: Federated data access.
+
+```gleam
+let query = q.new()
+  |> q.shortest_path(q.v("a"), q.v("b"), "route/to", "path")
+  |> q.virtual("external_api", [q.v("path")], ["status"])
+```
+
+### 6. Aggregates
 GleamDB supports nested aggregate clauses. These take a target variable, a filter sub-query, and an output variable.
 - `q.count(into, target, filter)`
 - `q.sum(into, target, filter)`

@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/option
 import gleamdb/shared/types.{type BodyClause, Negative, Positive, Val, Var}
 import gleamdb/fact
 
@@ -138,6 +139,49 @@ pub fn order_by(builder: QueryBuilder, variable: String, direction: types.OrderD
 /// Group By (Placeholder/Future)
 pub fn group_by(builder: QueryBuilder, variable: String) -> QueryBuilder {
   let clause = types.GroupBy(variable)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Find the shortest path between two entities via an edge attribute.
+pub fn shortest_path(
+  builder: QueryBuilder,
+  from: types.Part,
+  to: types.Part,
+  edge: String,
+  path_var: String,
+) -> QueryBuilder {
+  let clause = types.ShortestPath(from, to, edge, path_var, option.None)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Calculate PageRank for nodes connected by an edge.
+pub fn pagerank(
+  builder: QueryBuilder,
+  entity_var: String,
+  edge: String,
+  rank_var: String,
+) -> QueryBuilder {
+  let clause = types.PageRank(entity_var, edge, rank_var, 0.85, 20)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Query an external data source (Virtual Predicate).
+pub fn virtual(
+  builder: QueryBuilder,
+  predicate: String,
+  args: List(types.Part),
+  outputs: List(String),
+) -> QueryBuilder {
+  let clause = types.Virtual(predicate, args, outputs)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Generic filter expression.
+pub fn filter(
+  builder: QueryBuilder,
+  expr: types.Expression,
+) -> QueryBuilder {
+  let clause = types.Filter(expr)
   QueryBuilder(clauses: list.append(builder.clauses, [clause]))
 }
 

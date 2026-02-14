@@ -13,17 +13,20 @@ import gleamdb/storage
 import gleamdb/global
 import gleamdb/reactive
 import gleamdb/index/ets as ets_index
+import gleamdb/rule_serde
 import gleamdb/process_extra
 import gleamdb/raft
 import gleamdb/vec_index
 
 pub type Message {
-  Transact(List(fact.Fact), process.Subject(Result(types.DbState, String)))
-  Retract(List(fact.Fact), process.Subject(Result(types.DbState, String)))
+  Transact(List(fact.Fact), Option(Int), process.Subject(Result(types.DbState, String)))
+  Retract(List(fact.Fact), Option(Int), process.Subject(Result(types.DbState, String)))
   GetState(process.Subject(types.DbState))
   SetSchema(String, fact.AttributeConfig, process.Subject(Result(Nil, String)))
   RegisterFunction(String, fact.DbFunction(types.DbState), process.Subject(Nil))
-  RegisterComposite(List(String), process.Subject(Nil))
+  RegisterPredicate(String, fn(fact.Value) -> Bool, process.Subject(Nil))
+  RegisterComposite(List(String), process.Subject(Result(Nil, String)))
+  StoreRule(types.Rule, process.Subject(Result(Nil, String)))
   SetReactive(process.Subject(types.ReactiveMessage))
   Join(process.Pid)
   SyncDatoms(List(fact.Datom))
@@ -112,6 +115,9 @@ fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name:
       ets_name: ets_name,
       raft_state: raft.new([]),
       vec_index: vec_index.new(),
+      predicates: dict.new(),
+      stored_rules: [],
+      virtual_predicates: dict.new(),
     )
 
   let initial_state = recover_state(base_state)
@@ -124,33 +130,33 @@ fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name:
 
 fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbState, Message) {
   case msg {
-    Transact(facts, reply_to) -> {
+    Transact(facts, vt, reply_to) -> {
       case is_leader(state) {
-        True -> do_handle_transact(state, facts, fact.Assert, reply_to)
+        True -> do_handle_transact(state, facts, vt, fact.Assert, reply_to)
         False -> {
           // Forward to leader
           case global.whereis("gleamdb_leader") {
             Ok(leader_pid) -> {
               let leader_subject = process_extra.pid_to_subject(leader_pid)
-              process.send(leader_subject, Transact(facts, reply_to))
+              process.send(leader_subject, Transact(facts, vt, reply_to))
               actor.continue(state)
             }
-            Error(_) -> do_handle_transact(state, facts, fact.Assert, reply_to)
+            Error(_) -> do_handle_transact(state, facts, vt, fact.Assert, reply_to)
           }
         }
       }
     }
-    Retract(facts, reply_to) -> {
+    Retract(facts, vt, reply_to) -> {
        case is_leader(state) {
-        True -> do_handle_transact(state, facts, fact.Retract, reply_to)
+        True -> do_handle_transact(state, facts, vt, fact.Retract, reply_to)
         False -> {
           case global.whereis("gleamdb_leader") {
             Ok(leader_pid) -> {
               let leader_subject = process_extra.pid_to_subject(leader_pid)
-              process.send(leader_subject, Retract(facts, reply_to))
+              process.send(leader_subject, Retract(facts, vt, reply_to))
               actor.continue(state)
             }
-            Error(_) -> do_handle_transact(state, facts, fact.Retract, reply_to)
+            Error(_) -> do_handle_transact(state, facts, vt, fact.Retract, reply_to)
           }
         }
       }
@@ -160,16 +166,30 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       actor.continue(state)
     }
     SetSchema(attr, config, reply_to) -> {
-      let existing = index.get_all_datoms_for_attr(state.eavt, attr)
-        |> filter_latest_per_entity_attr()
+      let existing = index.get_all_datoms_for_attr(state.eavt, attr) |> filter_active()
+      
+      // 1. Uniqueness Guard
       let values = list.map(existing, fn(d) { d.value })
       let has_dupes = list.unique(values) |> list.length() != list.length(values)
-      case config.unique && has_dupes {
-        True -> {
-          process.send(reply_to, Error("Cannot make non-unique attribute unique"))
+      
+      // 2. Cardinality Guard
+      let entities_with_multiple = list.fold(existing, dict.new(), fn(acc, d) {
+        let count = dict.get(acc, d.entity) |> result.unwrap(0)
+        dict.insert(acc, d.entity, count + 1)
+      }) |> dict.to_list() |> list.filter(fn(pair) { pair.1 > 1 })
+      
+      let cardinality_violation = config.cardinality == fact.One && !list.is_empty(entities_with_multiple)
+
+      case config.unique && has_dupes, cardinality_violation {
+        True, _ -> {
+          process.send(reply_to, Error("Cannot make non-unique attribute unique: existing data has duplicates"))
           actor.continue(state)
         }
-        False -> {
+        _, True -> {
+          process.send(reply_to, Error("Cannot set cardinality to ONE: existing entities have multiple values"))
+          actor.continue(state)
+        }
+        False, False -> {
           let new_schema = dict.insert(state.schema, attr, config)
           let new_state = types.DbState(..state, schema: new_schema)
           process.send(reply_to, Ok(Nil))
@@ -183,11 +203,66 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       process.send(reply_to, Nil)
       actor.continue(new_state)
     }
-    RegisterComposite(attrs, reply_to) -> {
-      let new_composites = [attrs, ..state.composites]
-      let new_state = types.DbState(..state, composites: new_composites)
+    RegisterPredicate(name, pred, reply_to) -> {
+      let new_predicates = dict.insert(state.predicates, name, pred)
+      let new_state = types.DbState(..state, predicates: new_predicates)
       process.send(reply_to, Nil)
       actor.continue(new_state)
+    }
+    RegisterComposite(attrs, reply_to) -> {
+      // 1. Validation: Find all entities that have ALL attributes in the composite
+      let clauses = list.map(attrs, fn(attr) {
+        types.Positive(#(types.Var("e"), attr, types.Var(attr)))
+      })
+      
+      let results = engine.run(state, clauses, [], None, None)
+      
+      // 2. Identify if any distinct entities have the same value set
+      let seen = list.fold_until(results, Ok(dict.new()), fn(acc_res, binding) {
+        let assert Ok(acc) = acc_res
+        let e = dict.get(binding, "e") |> result.unwrap(fact.Int(0))
+        let vals = list.map(attrs, fn(a) { dict.get(binding, a) |> result.unwrap(fact.Int(0)) })
+        
+        case dict.get(acc, vals) {
+          Ok(existing_e) if existing_e != e -> list.Stop(Error("Existing data violates new composite: " <> string.inspect(attrs)))
+          _ -> list.Continue(Ok(dict.insert(acc, vals, e)))
+        }
+      })
+      
+      case seen {
+        Ok(_) -> {
+          let new_composites = [attrs, ..state.composites]
+          let new_state = types.DbState(..state, composites: new_composites)
+          process.send(reply_to, Ok(Nil))
+          actor.continue(new_state)
+        }
+        Error(e) -> {
+          process.send(reply_to, Error(e))
+          actor.continue(state)
+        }
+      }
+    }
+    StoreRule(rule, reply_to) -> {
+      // 1. Serialize Rule
+      let encoded = rule_serde.serialize(rule)
+      // 2. Transact as Fact
+      // We use a deterministic UID based on the rule name (if we had one) or content.
+      // For now, let's use the rule content hash as ID.
+      let eid = fact.deterministic_uid(encoded)
+      let rule_fact = #(eid, "_rule/content", fact.Str(encoded))
+      
+      case do_transact(state, [rule_fact], None, fact.Assert) {
+        Ok(#(new_state, _datoms)) -> {
+          // 3. Update in-memory state
+          let new_stored = [rule, ..state.stored_rules]
+          process.send(reply_to, Ok(Nil))
+          actor.continue(types.DbState(..new_state, stored_rules: new_stored))
+        }
+        Error(e) -> {
+          process.send(reply_to, Error(e))
+          actor.continue(state)
+        }
+      }
     }
     SetReactive(subject) -> {
       actor.continue(types.DbState(..state, reactive_actor: subject))
@@ -289,7 +364,7 @@ pub fn transact_with_timeout(
   timeout_ms: Int,
 ) -> Result(types.DbState, String) {
   let reply = process.new_subject()
-  process.send(db, Transact(facts, reply))
+  process.send(db, Transact(facts, None, reply))
   case process.receive(reply, timeout_ms) {
     Ok(res) -> res
     Error(_) -> Error("Timeout")
@@ -302,7 +377,7 @@ pub fn retract_with_timeout(
   timeout_ms: Int,
 ) -> Result(types.DbState, String) {
   let reply = process.new_subject()
-  process.send(db, Retract(facts, reply))
+  process.send(db, Retract(facts, None, reply))
   case process.receive(reply, timeout_ms) {
     Ok(res) -> res
     Error(_) -> Error("Timeout")
@@ -333,8 +408,14 @@ pub fn set_schema_with_timeout(
   }
 }
 
-fn do_handle_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation, reply_to: process.Subject(Result(types.DbState, String))) -> actor.Next(types.DbState, Message) {
-  case do_transact(state, facts, op) {
+fn do_handle_transact(
+  state: types.DbState,
+  facts: List(fact.Fact),
+  valid_time: Option(Int),
+  op: fact.Operation,
+  reply_to: process.Subject(Result(types.DbState, String)),
+) -> actor.Next(types.DbState, Message) {
+  case do_transact(state, facts, valid_time, op) {
     Ok(#(new_state, datoms)) -> {
       process.send(reply_to, Ok(new_state))
       let changed_attrs = list.map(facts, fn(f) { f.1 }) |> list.unique()
@@ -353,24 +434,6 @@ fn do_handle_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Ope
       actor.continue(state)
     }
   }
-}
-
-fn filter_latest_per_entity_attr(datoms: List(fact.Datom)) -> List(fact.Datom) {
-  let latest_txs = list.fold(datoms, dict.new(), fn(acc, d) {
-    let key = #(d.entity, d.attribute)
-    case dict.get(acc, key) {
-      Ok(tx) if tx > d.tx -> acc
-      _ -> dict.insert(acc, key, d.tx)
-    }
-  })
-  
-  list.filter(datoms, fn(d) {
-    let key = #(d.entity, d.attribute)
-    case dict.get(latest_txs, key) {
-      Ok(tx) -> tx == d.tx && d.operation == fact.Assert
-      _ -> False
-    }
-  }) |> list.unique()
 }
 
 fn filter_active(datoms: List(fact.Datom)) -> List(fact.Datom) {
@@ -409,11 +472,17 @@ fn recover_state(state: types.DbState) -> types.DbState {
   }
 }
 
-fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation) -> Result(#(types.DbState, List(fact.Datom)), String) {
+pub fn compute_next_state(
+  state: types.DbState,
+  facts: List(fact.Fact),
+  valid_time: Option(Int),
+  op: fact.Operation,
+) -> Result(#(types.DbState, List(fact.Datom)), String) {
   let tx_id = state.latest_tx + 1
+  let vt = option.unwrap(valid_time, tx_id) // Default valid time is tx_id if not provided
   
   // 1. Resolve Transaction Functions (Recursive)
-  let resolved_facts = resolve_transaction_functions(state, facts)
+  let resolved_facts = resolve_transaction_functions(state, tx_id, vt, facts)
   
   // 2. Process Facts
   let result = list.fold_until(resolved_facts, Ok(#(state, [])), fn(acc_res, f) {
@@ -423,22 +492,22 @@ fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation)
       Some(id) -> {
         case op {
           fact.Assert -> {
-            let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
+            let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.Many, check: None))
             
-            // Cardinality One
-            let #(sub_state, sub_datoms) = case config.unique {
+            // Cardinality One or LatestOnly Retention
+            let #(sub_state, sub_datoms) = case config.cardinality == fact.One || config.retention == fact.LatestOnly {
               True -> {
                 let existing = index.get_datoms_by_entity_attr(curr_state.eavt, id, f.1) |> filter_active()
                 list.fold(existing, #(curr_state, []), fn(acc, d) {
                   let #(st, ds) = acc
-                  let retract_datom = fact.Datom(..d, tx: tx_id, operation: fact.Retract)
+                  let retract_datom = fact.Datom(..d, tx: tx_id, valid_time: vt, operation: fact.Retract)
                   #(apply_datom(st, retract_datom), [retract_datom, ..ds])
                 })
               }
               False -> #(curr_state, [])
             }
             
-            let datom = fact.Datom(entity: id, attribute: f.1, value: f.2, tx: tx_id, operation: fact.Assert)
+            let datom = fact.Datom(entity: id, attribute: f.1, value: f.2, tx: tx_id, valid_time: vt, operation: fact.Assert)
             
             // Validation
             case check_constraints(sub_state, datom) {
@@ -452,18 +521,18 @@ fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation)
             }
           }
           fact.Retract -> {
-             let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
+             let config = dict.get(curr_state.schema, f.1) |> result.unwrap(fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.Many, check: None))
              let #(sub_state, sub_datoms) = case config.component {
                True -> {
                  case f.2 {
-                   fact.Ref(fact.EntityId(sub_id)) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, [])
-                   fact.Int(sub_id) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, [])
+                   fact.Ref(fact.EntityId(sub_id)) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, vt, [])
+                   fact.Int(sub_id) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, vt, [])
                    _ -> #(curr_state, [])
                  }
                }
                False -> #(curr_state, [])
              }
-             let datom = fact.Datom(entity: id, attribute: f.1, value: f.2, tx: tx_id, operation: fact.Retract)
+             let datom = fact.Datom(entity: id, attribute: f.1, value: f.2, tx: tx_id, valid_time: vt, operation: fact.Retract)
              list.Continue(Ok(#(apply_datom(sub_state, datom), [datom, ..list.append(sub_datoms, acc_datoms)])))
           }
         }
@@ -477,14 +546,28 @@ fn do_transact(state: types.DbState, facts: List(fact.Fact), op: fact.Operation)
   case result {
     Ok(#(final_state, all_datoms)) -> {
       let reversed = list.reverse(all_datoms)
-      final_state.adapter.persist_batch(reversed)
-      Ok(#(types.DbState(..final_state, latest_tx: tx_id), reversed) )
+      Ok(#(types.DbState(..final_state, latest_tx: tx_id), reversed))
     }
     Error(e) -> Error(e)
   }
 }
 
-fn resolve_transaction_functions(state: types.DbState, facts: List(fact.Fact)) -> List(fact.Fact) {
+fn do_transact(
+  state: types.DbState,
+  facts: List(fact.Fact),
+  valid_time: Option(Int),
+  op: fact.Operation,
+) -> Result(#(types.DbState, List(fact.Datom)), String) {
+  case compute_next_state(state, facts, valid_time, op) {
+    Ok(#(final_state, reversed)) -> {
+      final_state.adapter.persist_batch(reversed)
+      Ok(#(final_state, reversed))
+    }
+    Error(e) -> Error(e)
+  }
+}
+
+fn resolve_transaction_functions(state: types.DbState, tx_id: Int, vt: Int, facts: List(fact.Fact)) -> List(fact.Fact) {
   list.flat_map(facts, fn(f) {
     case f.0 {
       fact.Lookup(#("db/fn", fact.Str(fn_name))) -> {
@@ -494,8 +577,8 @@ fn resolve_transaction_functions(state: types.DbState, facts: List(fact.Fact)) -
               fact.List(l) -> l
               _ -> [f.2]
             }
-            let new_facts = func(state, args)
-            resolve_transaction_functions(state, new_facts)
+            let new_facts = func(state, tx_id, vt, args)
+            resolve_transaction_functions(state, tx_id, vt, new_facts)
           }
           Error(_) -> [f] // Fallback, let down-stream handle error if needed
         }
@@ -509,40 +592,47 @@ fn check_composite_uniqueness(state: types.DbState, datom: fact.Datom) -> Result
   let composites = list.filter(state.composites, fn(c) { list.contains(c, datom.attribute) })
   
   list.fold_until(composites, Ok(Nil), fn(_, composite) {
-    // For each composite that includes this attribute, find all entities that have all attributes in the composite
-    // with these SAME values.
-    
-    // Construct query to find duplicates
-    let clauses = list.map(composite, fn(attr) {
+    // 1. Collect values for all attributes in the composite for this entity
+    let values_res = list.fold_until(composite, Ok([]), fn(acc_res, attr) {
+      let assert Ok(acc) = acc_res
       let val = case attr == datom.attribute {
-        True -> datom.value
+        True -> Ok(datom.value)
         False -> {
-          // Find current value for this attribute on this entity
           let existing = index.get_datoms_by_entity_attr(state.eavt, datom.entity, attr) |> filter_active()
           case list.first(existing) {
-            Ok(d) -> d.value
-            Error(_) -> fact.Str("__MISSING__")
+            Ok(d) -> Ok(d.value)
+            Error(_) -> Error(Nil)
           }
         }
       }
-      types.Positive(#(types.Var("e"), attr, types.Val(val)))
+      case val {
+        Ok(v) -> list.Continue(Ok([#(attr, v), ..acc]))
+        Error(_) -> list.Stop(Error(Nil))
+      }
     })
     
-    // Run query
-    let results = engine.run(state, clauses, [], None)
-    
-    // If any result is NOT our current entity, it's a violation
-    let has_violation = list.any(results, fn(binding) {
-        case dict.get(binding, "e") {
-          Ok(fact.Ref(eid)) -> eid != datom.entity
-          Ok(fact.Int(eid)) -> fact.EntityId(eid) != datom.entity
-          _ -> False
+    case values_res {
+      Error(_) -> list.Continue(Ok(Nil)) // Skip check if any attribute is missing
+      Ok(attr_vals) -> {
+        // 2. Query for other entities with the same values
+        let clauses = list.map(attr_vals, fn(pair) {
+          types.Positive(#(types.Var("e"), pair.0, types.Val(pair.1)))
+        })
+        
+        let results = engine.run(state, clauses, [], None, None)
+        let has_violation = list.any(results, fn(binding) {
+          case dict.get(binding, "e") {
+            Ok(fact.Ref(eid)) -> eid != datom.entity
+            Ok(fact.Int(eid)) -> fact.EntityId(eid) != datom.entity
+            _ -> False
+          }
+        })
+        
+        case has_violation {
+          True -> list.Stop(Error("Composite uniqueness violation: " <> string.inspect(composite)))
+          False -> list.Continue(Ok(Nil))
         }
-    })
-    
-    case has_violation {
-      True -> list.Stop(Error("Composite uniqueness violation: " <> string.inspect(composite)))
-      False -> list.Continue(Ok(Nil))
+      }
     }
   })
 }
@@ -551,29 +641,45 @@ pub fn transact(db: Db, facts: List(fact.Fact)) -> Result(types.DbState, String)
   transact_with_timeout(db, facts, 5000)
 }
 
-fn retract_recursive_collected(state: types.DbState, eid: fact.EntityId, tx_id: Int, acc: List(fact.Datom)) -> #(types.DbState, List(fact.Datom)) {
+fn retract_recursive_collected(state: types.DbState, eid: fact.EntityId, tx_id: Int, valid_time: Int, acc: List(fact.Datom)) -> #(types.DbState, List(fact.Datom)) {
   let children = index.filter_by_entity(state.eavt, eid) |> filter_active()
   list.fold(children, #(state, acc), fn(curr, d) {
     let #(curr_state, curr_acc) = curr
-    let config = dict.get(curr_state.schema, d.attribute) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
+    let config = dict.get(curr_state.schema, d.attribute) |> result.unwrap(fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.Many, check: None))
     let #(sub_state, sub_acc) = case config.component {
       True -> {
         case d.value {
-          fact.Ref(fact.EntityId(sub_id)) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, curr_acc)
-          fact.Int(sub_id) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, curr_acc)
+          fact.Ref(fact.EntityId(sub_id)) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, valid_time, curr_acc)
+          fact.Int(sub_id) -> retract_recursive_collected(curr_state, fact.EntityId(sub_id), tx_id, valid_time, curr_acc)
           _ -> #(curr_state, curr_acc)
         }
       }
       False -> #(curr_state, curr_acc)
     }
-    let retract_datom = fact.Datom(..d, tx: tx_id, operation: fact.Retract)
+    let retract_datom = fact.Datom(..d, tx: tx_id, valid_time: valid_time, operation: fact.Retract)
     #(apply_datom(sub_state, retract_datom), [retract_datom, ..sub_acc])
   })
 }
 
 fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
-  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
+  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.Many, check: None))
   let retention = config.retention
+  
+  // Rule Recovery (Side Effect on DbState metadata)
+  let state = case datom.attribute {
+    "_rule/content" -> {
+      case datom.value, datom.operation {
+        fact.Str(encoded), fact.Assert -> {
+          case rule_serde.deserialize(encoded) {
+            Ok(rule) -> types.DbState(..state, stored_rules: [rule, ..state.stored_rules])
+            _ -> state
+          }
+        }
+        _, _ -> state
+      }
+    }
+    _ -> state
+  }
 
   let base_state = case state.ets_name {
     Some(name) -> {
@@ -650,11 +756,33 @@ pub fn register_function(
   Nil
 }
 
-pub fn register_composite(db: Db, attrs: List(String)) -> Nil {
+pub fn register_predicate(
+  db: Db,
+  name: String,
+  pred: fn(fact.Value) -> Bool,
+) -> Nil {
   let reply = process.new_subject()
-  process.send(db, RegisterComposite(attrs, reply))
+  process.send(db, RegisterPredicate(name, pred, reply))
   let _ = process.receive(reply, 5000)
   Nil
+}
+
+pub fn store_rule(db: Db, rule: types.Rule) -> Result(Nil, String) {
+  let reply = process.new_subject()
+  process.send(db, StoreRule(rule, reply))
+  case process.receive(reply, 5000) {
+    Ok(res) -> res
+    Error(_) -> Error("Timeout storing rule")
+  }
+}
+
+pub fn register_composite(db: Db, attrs: List(String)) -> Result(Nil, String) {
+  let reply = process.new_subject()
+  process.send(db, RegisterComposite(attrs, reply))
+  case process.receive(reply, 5000) {
+    Ok(res) -> res
+    Error(_) -> Error("Timeout registering composite")
+  }
 }
 
 fn resolve_eid(state: types.DbState, eid: fact.Eid) -> Option(fact.EntityId) {
@@ -665,8 +793,10 @@ fn resolve_eid(state: types.DbState, eid: fact.Eid) -> Option(fact.EntityId) {
 }
 
 fn check_constraints(state: types.DbState, datom: fact.Datom) -> Result(Nil, String) {
-  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(False, False, fact.All))
-  case config.unique {
+  let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.Many, check: None))
+  
+  // 1. Uniqueness check
+  let res = case config.unique {
     True -> {
       case index.get_entity_by_av(state.avet, datom.attribute, datom.value) {
         Ok(existing_id) if existing_id != datom.entity -> Error("Unique constraint violation on " <> datom.attribute)
@@ -674,5 +804,26 @@ fn check_constraints(state: types.DbState, datom: fact.Datom) -> Result(Nil, Str
       }
     }
     False -> Ok(Nil)
+  }
+  
+  // 2. Custom check predicate
+  case res {
+    Ok(_) -> {
+      case config.check {
+        Some(pred_name) -> {
+          case dict.get(state.predicates, pred_name) {
+            Ok(pred) -> {
+              case pred(datom.value) {
+                True -> Ok(Nil)
+                False -> Error("CHECK constraint violation on " <> datom.attribute <> " (predicate: " <> pred_name <> ")")
+              }
+            }
+            Error(_) -> Ok(Nil) // Predicate not found, skip check
+          }
+        }
+        None -> Ok(Nil)
+      }
+    }
+    Error(e) -> Error(e)
   }
 }

@@ -57,7 +57,7 @@ pub fn aggregation_test() {
     ])
   ])
   let assert Ok(row2) = list.first(res_sum)
-  should.equal(dict.get(row2, "sum_age"), Ok(fact.Float(105.0)))
+  should.equal(dict.get(row2, "sum_age"), Ok(fact.Int(105)))
   
   // 3. Min/Max
   let res_min_max = gleamdb.query(db, [

@@ -28,21 +28,39 @@ Horizontal partitioning of facts across strictly isolated local shards (`gleamdb
 ### [x] Deterministic Identity (Phase 25)
 `fact.deterministic_uid` and `fact.phash2` ensure ID consistency across distributed nodes without coordination. Enables idempotent ingestion.
 
+### [x] The Intelligent Engine (Phase 26)
+Native **Graph Algorithms** (ShortestPath, PageRank), **Data Federation** (Virtual Predicates), and **Time Travel** (Diff API).
+
+### [x] The Speculative Soul (Phase 27)
+Frictionless "Database as a Value" with `with_facts`, recursive `pull`, and a navigational Entity API.
+
+### [x] The Logical Navigator (Phase 28)
+Cost-based query optimization and heuristic join reordering.
+
+### [x] The Chronos Sovereign (Phase 29)
+Bitemporal data model (Valid Time + System Time) and `as_of_valid` time travel.
+
+### [x] The Completeness (Phase 30)
+Atomic Transaction Functions and Composite Constraints for total integrity.
+
+### [x] Sovereign Intelligence (Phase 31)
+distributed Aggregates (`Sum`, `Count`, `Avg`, `Max`, `Min`, `Median`) and Parallel Query Execution.
+
 ---
 
 ## Future Directions (Phase 24+)
 
 | Item | Description | Priority |
 | :--- | :--- | :--- |
+| **Navigator (Ph 28)** | Cost-based query planner (Join Ordering) | **High** |
 | **HNSW Layering** | Add hierarchical layers to NSW for 100K+ vector datasets | Medium |
-| **Query Planner** | Cost-based clause ordering optimization | Medium |
-| **Attribute Cardinality** | Schema-level many/one declarations | Low |
-| **Persistent Pull Cache** | LRU cache for hot pull patterns across transactions | Low |
-| **WAL Streaming** | Real-time transaction log streaming for external consumers | Low |
+| **Bitemporality** | Separate Valid Time from System Time (XTDB style) | Medium |
+| **Persistent Pull Cache** | LRU cache for hot pull patterns | Low |
+| **WAL Streaming** | Real-time transaction log streaming | Low |
 
 ---
 
-## Current Status: Phase 25 (Sovereign Scale)
-All original roadmap items are complete. The system is correct, durable, concurrent, resilient, and **horizontally scalable**.
+## Current Status: Phase 31 (Sovereign Intelligence)
+All original roadmap items and the Sovereign Intelligence vision are complete. The system is correct, durable, speculative, parallel, and horizontally scalable.
 
 🧙🏾‍♂️: "A system that is correct, durable, sovereign, AND resilient is no longer a prototype. It is a foundation for intelligence."

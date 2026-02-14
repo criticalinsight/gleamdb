@@ -10,7 +10,7 @@ pub fn history_audit_test() {
   let db = gleamdb.new()
   
   // 0. Set Schema: user/age is unique (Cardinality ONE)
-  let assert Ok(_) = gleamdb.set_schema(db, "user/age", fact.AttributeConfig(unique: True, component: False, retention: fact.All))
+  let assert Ok(_) = gleamdb.set_schema(db, "user/age", fact.AttributeConfig(unique: True, component: False, retention: fact.All, cardinality: fact.One, check: option.None))
   
   // 1. Transaction 1: Create user
   let assert Ok(_) = gleamdb.transact(db, [

@@ -1,31 +1,58 @@
-import gleamdb
-import gleamdb/fact.{Str}
-import gleeunit
+import gleam/option.{None, Some}
 import gleeunit/should
+import gleamdb
+import gleamdb/fact
 
-pub fn main() {
-  gleeunit.main()
-}
-
-pub fn schema_guard_test() {
+pub fn schema_guard_uniqueness_test() {
   let db = gleamdb.new()
   
-  // 1. Ingest duplicate data (initially valid, as attribute is not unique)
+  // 1. Transact duplicate data for a non-unique attribute
   let assert Ok(_) = gleamdb.transact(db, [
-    #(fact.Uid(fact.EntityId(1)), "username", Str("Alice")),
-    #(fact.Uid(fact.EntityId(2)), "username", Str("Alice")), // Duplicate!
+    #(fact.uid(1), "user/email", fact.Str("rich@hickey.com")),
+    #(fact.uid(2), "user/email", fact.Str("rich@hickey.com"))
   ])
   
-  // 2. Attempt to make "username" unique (Should Fail)
-  let result = gleamdb.set_schema(db, "username", fact.AttributeConfig(unique: True, component: False, retention: fact.All))
-  should.be_error(result)
+  // 2. Try to make "user/email" unique -> Should fail
+  let config = fact.AttributeConfig(unique: True, component: False, retention: fact.All, cardinality: fact.Many, check: None)
+  let res = gleamdb.set_schema(db, "user/email", config)
   
-  // 3. Retract duplicate
-  let assert Ok(_) = gleamdb.retract(db, [
-    #(fact.Uid(fact.EntityId(2)), "username", Str("Alice"))
+  res |> should.be_error()
+  res |> should.equal(Error("Cannot make non-unique attribute unique: existing data has duplicates"))
+}
+
+pub fn schema_guard_cardinality_test() {
+  let db = gleamdb.new()
+  
+  // 1. Transact multiple values for an entity's attribute
+  let assert Ok(_) = gleamdb.transact(db, [
+    #(fact.uid(1), "user/alias", fact.Str("Rich")),
+    #(fact.uid(1), "user/alias", fact.Str("Hickey"))
   ])
   
-  // 4. Attempt to make "username" unique again (Should Succeed)
-  let result_retry = gleamdb.set_schema(db, "username", fact.AttributeConfig(unique: True, component: False, retention: fact.All))
-  should.be_ok(result_retry)
+  // 2. Try to set cardinality to ONE -> Should fail
+  let config = fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.One, check: None)
+  let res = gleamdb.set_schema(db, "user/alias", config)
+  
+  res |> should.be_error()
+  res |> should.equal(Error("Cannot set cardinality to ONE: existing entities have multiple values"))
+}
+
+pub fn schema_guard_success_test() {
+  let db = gleamdb.new()
+  
+  // 1. Transact unique data
+  let assert Ok(_) = gleamdb.transact(db, [
+    #(fact.uid(1), "user/email", fact.Str("rich@hickey.com")),
+    #(fact.uid(2), "user/email", fact.Str("stu@arthur.com"))
+  ])
+  
+  // 2. Make it unique -> Should succeed
+  let config = fact.AttributeConfig(unique: True, component: False, retention: fact.All, cardinality: fact.Many, check: None)
+  let assert Ok(_) = gleamdb.set_schema(db, "user/email", config)
+  
+  // 3. Subsequent duplicates should be rejected
+  let res = gleamdb.transact(db, [
+    #(fact.uid(3), "user/email", fact.Str("rich@hickey.com"))
+  ])
+  res |> should.be_error()
 }

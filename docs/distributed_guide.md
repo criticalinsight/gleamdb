@@ -70,3 +70,15 @@ The Raft protocol prevents split-brain by:
 - **Network Partition**: If a follower loses connection, it remains readable (local cache) but cannot perform transactions until reconnected.
 - **Autonomous Failover**: On leader failure, the Raft election protocol triggers automatic re-election. The first candidate to win a majority quorum becomes the new leader.
 - **Zero-Downtime Promotion**: The new leader registers via `global:register_name` and begins accepting transactions immediately.
+
+## Distributed Intelligent Engine
+
+### Federation Localism
+Virtual predicates are **resolved locally** on the node where the query is executing.
+- **Requirement**: Adapters must be registered on every node in the cluster that will perform federated queries.
+- **Logic**: This prevents massive data transfer overhead by allowing nodes to join their own local context with shared facts.
+
+### Time Travel Consistency
+The `diff(tx1, tx2)` operation is consistent across the cluster.
+- **Shared History**: Since the `SyncDatoms` protocol replicates history to all participants, any follower can compute a local diff and reach the same conclusion as the leader.
+- **Audit Anywhere**: You can perform temporal auditing on dedicated "Analysis Nodes" (followers) without impacting the throughput of the "Write Leader."

@@ -45,6 +45,20 @@ let query = [Similarity(Var("market"), [0.1, 0.2, 0.3], 0.9)]
 let results = gleamdb.query(db, query)
 ```
 
+## Graph Algorithm Efficiency
+
+Native algorithmic predicates are optimized for the BEAM's shared-nothing architecture:
+
+- **Shortest Path (BFS)**: Operates in O(V + E) by leveraging the `AEVT` index for neighbors.
+- **PageRank Power Method**: Uniquely optimized by pre-computing the graph structure into adjacency maps before the iterative phase. This eliminates index lookups during the heavy numeric crunching, ensuring maximum throughput.
+
+## Federation Overhead
+
+When using `Virtual` predicates, performance is dictated by the **Adapter Protocol**:
+- **Local Resolution**: Virtual predicates are resolved in the query actor process.
+- **Latency Sensitivity**: If an adapter calls a remote API, it will latency-spike that specific query branch.
+- **Strategy**: Use local CSV/JSON files or in-memory caches within the adapter for real-time join performance.
+
 ## Advanced Patterns
 
 ### Parallel Querying
@@ -61,6 +75,15 @@ list.each(0..10, fn(_) {
 ```
 
 While reads are concurrent, writes remain serialized through the leader's Transactor. For maximum throughput, combine multiple facts into a single `transact` call to leverage batch persistence and replication.
+
+
+### Parallel Query Execution (v1.9.0)
+
+GleamDB automatically parallelizes any query branch that exceeds **500 items** in intermediate context size.
+
+- **Mechanism**: Spawns linked `gleam/erlang/process` actors for chunks of the context.
+- **Speedup**: Linear scaling for large scans or complex joins.
+- **Threshold**: Hardcoded to 500 to balance spawn overhead vs parallelism gain.
 
 ## Memory Management: Fact Retention
 

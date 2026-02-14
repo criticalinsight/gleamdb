@@ -19,6 +19,13 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Native `phash2` support enables deterministic Entity IDs for **Idempotent Transactions**.
 - **Native Sharding (v1.7.0)**: Horizontal partition of facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware. Each shard is an isolated Raft consensus group.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
+- **Graph Algorithms**: Native `ShortestPath` (BFS) and `PageRank` Magic Predicates for complex network analysis.
+- **Data Federation**: Query external data sources (CSV, JSON, APIs) as if they were internal facts via `Virtual` predicates.
+- **Time Travel (Diff)**: Deep temporal introspection with `gleamdb.diff`.
+- **Speculative Soul (Phase 27)**: Treat the database as a pure value with `gleamdb.with_facts` — non-persistent, what-if state transitions.
+- **Enhanced Pull**: Selective exclusion (`pull_except`) and automated graph recursion (`pull_recursive`).
+- **Logical Navigator (Phase 28)**: Cost-based query planner that automatically reorders join clauses for optimal performance.
+- **Sovereign Intelligence (Phase 31)**: Next-gen analytics with **Distributed Aggregates** (`Sum`, `Avg`, `Median`) and **Parallel Query Execution** (auto-sharding for >500 items).
 - **OTP Native**: Queries are independent actors, allowing for introspection, suspension, and distribution.
 
 ## ⚡ Performance
@@ -115,6 +122,27 @@ let query =
   |> q.order_by("ts", Asc)
   |> q.limit(100)
   |> q.to_clauses
+
+### Graph, Federation & Time Travel
+Native primitives for complex traversals and external data:
+
+```gleam
+// 1. Graph: Find shortest path between cities
+let query = q.new()
+  |> q.where(q.v("a"), "city/name", q.s("London"))
+  |> q.where(q.v("b"), "city/name", q.s("Paris"))
+  |> q.shortest_path(q.v("a"), q.v("b"), "route/to", "path")
+  |> q.to_clauses()
+
+// 2. Federation: Query CSV joined with internal user data
+let query = q.new()
+  |> q.virtual("users_csv", [], ["name", "age"])
+  |> q.where(q.v("u"), "user/name", q.v("name"))
+  |> q.to_clauses()
+
+// 3. Time Travel: What changed between tx1 and tx3?
+let changes = gleamdb.diff(db, tx1, tx3)
+```
 ```
 ```
 
@@ -125,6 +153,10 @@ gleamdb.set_schema(db, "ticker/price", config)
 ```
 
 ## 📚 Documentation
+- [Search & Similarity (Vector NSW)](docs/features/vector_index.md) // Placeholder but good to have
+- [Graph Algorithms](docs/features/graph_algorithms.md)
+- [Data Federation](docs/features/federation.md)
+- [Time Travel (Diff API)](docs/features/time_travel.md)
 - [Performance Guide (Silicon Saturation)](docs/performance_guide.md)
 - [Distributed Guide (The Sovereign Fabric)](docs/distributed_guide.md)
 - [Architecture Details](docs/architecture.md)

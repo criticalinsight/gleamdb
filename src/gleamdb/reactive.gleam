@@ -39,11 +39,11 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
               
               case is_affected {
                 True -> {
-                  let current_result = engine.run(db_state, aq.query, [], None)
+                  let current_result = engine.run(db_state, aq.query, [], None, None)
                   let #(added, removed) = diff(aq.last_result, current_result)
                   
                   case added == [] && removed == [] {
-                    True -> Ok(aq) // No actual change
+                    True -> Ok(aq)
                     False -> {
                       process.send(aq.subscriber, Delta(added, removed))
                       Ok(ActiveQuery(..aq, last_result: current_result))

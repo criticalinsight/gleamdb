@@ -24,8 +24,14 @@ pub type DbState {
     ets_name: Option(String),
     raft_state: raft.RaftState,
     vec_index: vec_index.VecIndex,
+    predicates: Dict(String, fn(fact.Value) -> Bool),
+    stored_rules: List(Rule),
+    virtual_predicates: Dict(String, VirtualAdapter),
   )
 }
+
+pub type VirtualAdapter =
+  fn(List(fact.Value)) -> List(List(fact.Value))
 
 pub type Clause =
   #(Part, String, Part)
@@ -38,7 +44,7 @@ pub type Part {
 pub type BodyClause {
   Positive(Clause)
   Negative(Clause)
-  Filter(fn(Dict(String, fact.Value)) -> Bool)
+  Filter(Expression)
   Bind(String, fn(Dict(String, fact.Value)) -> fact.Value)
   Aggregate(
     variable: String,
@@ -53,6 +59,29 @@ pub type BodyClause {
   Offset(n: Int)
   OrderBy(variable: String, direction: OrderDirection)
   GroupBy(variable: String)
+  ShortestPath(
+    from: Part,
+    to: Part,
+    edge: String,
+    path_var: String,
+    cost_var: Option(String),
+  )
+  PageRank(
+    entity_var: String,
+    edge: String,
+    rank_var: String,
+    dumping_factor: Float,
+    iterations: Int,
+  )
+  Virtual(
+    predicate: String,
+    args: List(Part),
+    outputs: List(String),
+  )
+}
+
+pub type Rule {
+  Rule(head: Clause, body: List(BodyClause))
 }
 
 pub type OrderDirection {
@@ -85,4 +114,13 @@ pub type ReactiveMessage {
 pub type ReactiveDelta {
   Initial(QueryResult)
   Delta(added: QueryResult, removed: QueryResult)
+}
+
+pub type Expression {
+  Eq(Part, Part)
+  Neq(Part, Part)
+  Gt(Part, Part)
+  Lt(Part, Part)
+  And(Expression, Expression)
+  Or(Expression, Expression)
 }

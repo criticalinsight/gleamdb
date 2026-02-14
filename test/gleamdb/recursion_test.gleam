@@ -2,8 +2,9 @@ import gleam/list
 import gleam/result
 import gleamdb
 import gleamdb/fact.{Int}
-import gleamdb/shared/types
-import gleamdb/engine.{Rule}
+import gleamdb/shared/types.{Rule, Val, Var}
+import gleamdb/engine.{Single, Many}
+import gleamdb/storage
 import gleam/dict
 import gleeunit
 import gleeunit/should

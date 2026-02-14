@@ -157,6 +157,11 @@ pub fn get_datoms_by_val(index: AIndex, attr: Attribute, val: Value) -> List(Dat
   |> list.filter(fn(d) { d.value == val })
 }
 
+pub fn get_all_datoms(index: Index) -> List(Datom) {
+  dict.values(index)
+  |> list.flatten()
+}
+
 pub fn get_all_datoms_for_attr(index: Index, attr: Attribute) -> List(Datom) {
   dict.values(index)
   |> list.flatten()
@@ -169,7 +174,7 @@ pub fn get_all_datoms_avet(index: AVIndex) -> List(Datom) {
     dict.to_list(v_dict)
     |> list.map(fn(pair) {
       let #(val, eid) = pair
-      fact.Datom(entity: eid, attribute: "unknown", value: val, tx: 0, operation: fact.Assert)
+      fact.Datom(entity: eid, attribute: "unknown", value: val, tx: 0, valid_time: 0, operation: fact.Assert)
     })
   })
 }

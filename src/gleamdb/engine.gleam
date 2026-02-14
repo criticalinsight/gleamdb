@@ -12,37 +12,51 @@ import gleamdb/vector
 import gleamdb/vec_index
 import gleamdb/shared/types
 import gleamdb/index
+import gleamdb/algo/graph
+import gleamdb/algo/aggregate
 import gleamdb/index/ets as ets_index
+import gleam/erlang/process
+import gleamdb/engine/navigator
 
-pub type Rule {
-  Rule(head: types.Clause, body: List(types.BodyClause))
-}
+// Rule moved to types.gleam to avoid cycle
 
 pub type PullPattern =
   List(PullItem)
 
 pub type PullItem {
+  Wildcard
   Attr(String)
   Nested(String, PullPattern)
-  Wildcard
+  Except(List(String))
+  Recursion(String, Int) // attribute, depth
 }
 
 pub type PullResult {
   Map(Dict(String, PullResult))
   Single(fact.Value)
   Many(List(fact.Value))
+  NestedMany(List(PullResult))
 }
 
 pub fn run(
   db_state: types.DbState,
   clauses: List(types.BodyClause),
-  rules: List(Rule),
+  rules: List(types.Rule),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
 ) -> types.QueryResult {
-  let all_derived = derive_all_facts(db_state, rules, as_of_tx)
+  let as_of_v = case as_of_valid {
+    Some(vt) -> Some(vt)
+    None -> Some(db_state.latest_tx)
+  }
+  let all_rules = list.append(rules, db_state.stored_rules)
+  let all_derived = derive_all_facts(db_state, all_rules, as_of_tx, as_of_v)
   let initial_context = [dict.new()]
   
-  list.fold(clauses, initial_context, fn(contexts, clause) {
+  // Logical Navigator: Plan the query before execution
+  let planned_clauses = navigator.plan(clauses)
+  
+  list.fold(planned_clauses, initial_context, fn(contexts, clause) {
     case clause {
       types.Limit(n) -> list.take(contexts, n)
       types.Offset(n) -> list.drop(contexts, n)
@@ -64,7 +78,7 @@ pub fn run(
       types.GroupBy(_) -> contexts // Placeholder for now or strictly aggregation
       normal_clause -> {
         list.flat_map(contexts, fn(ctx) {
-          solve_clause_with_derived(db_state, normal_clause, ctx, all_derived, as_of_tx)
+          solve_clause_with_derived(db_state, normal_clause, ctx, all_derived, as_of_tx, as_of_v)
         })
       }
     }
@@ -72,49 +86,52 @@ pub fn run(
   |> list.unique()
 }
 
-fn derive_all_facts(db_state: types.DbState, rules: List(Rule), as_of_tx: Option(Int)) -> Set(fact.Datom) {
-  do_derive(db_state, rules, as_of_tx, set.new())
+fn derive_all_facts(db_state: types.DbState, rules: List(types.Rule), as_of_tx: Option(Int), as_of_valid: Option(Int)) -> Set(fact.Datom) {
+  do_derive(db_state, rules, as_of_tx, as_of_valid, set.new())
 }
 
 fn do_derive(
   db_state: types.DbState,
-  rules: List(Rule),
+  rules: List(types.Rule),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
   derived: Set(fact.Datom),
 ) -> Set(fact.Datom) {
   let initial_new = derived
-  do_derive_recursive(db_state, rules, as_of_tx, derived, initial_new)
+  do_derive_recursive(db_state, rules, as_of_tx, as_of_valid, derived, initial_new, True)
 }
 
 fn do_derive_recursive(
   db_state: types.DbState,
-  rules: List(Rule),
+  rules: List(types.Rule),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
   all_derived: Set(fact.Datom),
   last_new_derived: Set(fact.Datom),
+  first_run: Bool,
 ) -> Set(fact.Datom) {
-  case set.size(last_new_derived) == 0 && set.size(all_derived) > 0 {
+  case !first_run && set.size(last_new_derived) == 0 {
     True -> all_derived
     False -> {
       let next_new = list.fold(rules, set.new(), fn(acc, r) {
         // Semi-Naive Evaluation:
         // For each rule, we only want results that involve at least one fact 
         // from 'last_new_derived'. This avoids re-discovering the same facts.
-        let results = solve_rule_body_semi_naive(db_state, r.body, all_derived, last_new_derived, as_of_tx)
+        let results = solve_rule_body_semi_naive(db_state, r.body, all_derived, last_new_derived, as_of_tx, as_of_valid)
         
         list.fold(results, acc, fn(inner_acc, ctx) {
           let e = resolve_part_optional(r.head.0, ctx)
           let v = resolve_part_optional(r.head.2, ctx)
           case e, v {
             Some(fact.Ref(fact.EntityId(eid_val))), Some(val) -> {
-              let d = fact.Datom(entity: fact.EntityId(eid_val), attribute: r.head.1, value: val, tx: 0, operation: fact.Assert)
+              let d = fact.Datom(entity: fact.EntityId(eid_val), attribute: r.head.1, value: val, tx: 0, valid_time: 0, operation: fact.Assert)
               case set.contains(all_derived, d) {
                 True -> inner_acc
                 False -> set.insert(inner_acc, d)
               }
             }
             Some(fact.Int(eid_val)), Some(val) -> {
-              let d = fact.Datom(entity: fact.EntityId(eid_val), attribute: r.head.1, value: val, tx: 0, operation: fact.Assert)
+              let d = fact.Datom(entity: fact.EntityId(eid_val), attribute: r.head.1, value: val, tx: 0, valid_time: 0, operation: fact.Assert)
               case set.contains(all_derived, d) {
                 True -> inner_acc
                 False -> set.insert(inner_acc, d)
@@ -129,7 +146,7 @@ fn do_derive_recursive(
         True -> all_derived
         False -> {
           let next_all = set.union(all_derived, next_new)
-          do_derive_recursive(db_state, rules, as_of_tx, next_all, next_new)
+          do_derive_recursive(db_state, rules, as_of_tx, as_of_valid, next_all, next_new, False)
         }
       }
     }
@@ -142,6 +159,7 @@ fn solve_rule_body_semi_naive(
   all_derived: Set(fact.Datom),
   delta: Set(fact.Datom),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
 ) -> List(Dict(String, fact.Value)) {
   // Semi-Naive correctly: SUM_{i=1 to n} (P1 & ... & delta(Pi) & ... & Pn)
   // We iterate through each clause Pi, treating it as the "pinned" delta clause.
@@ -159,17 +177,17 @@ fn solve_rule_body_semi_naive(
     
     // 1. Solve prefix
     let ctxs = list.fold(prefix, ctxs, fn(acc, c) {
-      list.flat_map(acc, fn(ctx) { solve_clause_with_derived(db_state, c, ctx, all_derived, as_of_tx) })
+      list.flat_map(acc, fn(ctx) { solve_clause_with_derived(db_state, c, ctx, all_derived, as_of_tx, as_of_valid) })
     })
     
     // 2. Solve delta(Pi) - ONLY use the new facts
     let ctxs = list.flat_map(ctxs, fn(ctx) {
-      solve_clause_with_derived(db_state, clause_i, ctx, delta, as_of_tx)
+      solve_clause_with_derived(db_state, clause_i, ctx, delta, as_of_tx, as_of_valid)
     })
     
     // 3. Solve suffix
     let ctxs = list.fold(suffix, ctxs, fn(acc, c) {
-      list.flat_map(acc, fn(ctx) { solve_clause_with_derived(db_state, c, ctx, all_derived, as_of_tx) })
+      list.flat_map(acc, fn(ctx) { solve_clause_with_derived(db_state, c, ctx, all_derived, as_of_tx, as_of_valid) })
     })
     
     ctxs
@@ -182,18 +200,19 @@ fn solve_clause(
   db_state: types.DbState,
   clause: types.BodyClause,
   ctx: Dict(String, fact.Value),
-  rules: List(Rule),
+  rules: List(types.Rule),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
 ) -> List(Dict(String, fact.Value)) {
   case clause {
     types.Positive(c) -> solve_positive(db_state, c, ctx)
     types.Negative(c) -> solve_negative(db_state, c, ctx)
     types.Aggregate(var, func, target, filter_clauses) -> {
-      solve_aggregate(ctx, var, func, target, db_state, filter_clauses, rules, as_of_tx)
+      solve_aggregate(ctx, var, func, target, db_state, filter_clauses, rules, as_of_tx, as_of_valid)
     }
     types.Similarity(variable: var, vector: vec, threshold: threshold) -> solve_similarity(db_state, var, vec, threshold, ctx)
-    types.Filter(f) -> {
-      case f(ctx) {
+    types.Filter(expr) -> {
+      case eval_expression(expr, ctx) {
         True -> [ctx]
         False -> []
       }
@@ -203,6 +222,9 @@ fn solve_clause(
       [dict.insert(ctx, var, val)]
     }
     types.Temporal(var, entity, attr, start, end) -> solve_temporal(db_state, var, entity, attr, start, end, ctx)
+    types.ShortestPath(from, to, edge, path_var, cost_var) -> solve_shortest_path(db_state, from, to, edge, path_var, cost_var, ctx)
+    types.PageRank(entity_var, edge, rank_var, d, iter) -> solve_pagerank(db_state, entity_var, edge, rank_var, d, iter, ctx)
+    types.Virtual(pred, args, outputs) -> solve_virtual(db_state, pred, args, outputs, ctx)
     _ -> [ctx]
   }
 }
@@ -226,7 +248,9 @@ fn solve_positive(
     Some(_), _ -> []
   }
 
-  let active = base_datoms |> filter_active()
+  let active = base_datoms 
+    |> filter_by_time(None, None) // solve_positive is internal, usually doesn't need as_of here unless called from run
+    |> filter_active()
 
   list.map(active, fn(d: fact.Datom) {
     let b = ctx
@@ -262,6 +286,7 @@ fn solve_clause_with_derived(
   ctx: Dict(String, fact.Value),
   derived: Set(fact.Datom),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
 ) -> List(Dict(String, fact.Value)) {
   case clause {
     types.Positive(trip) -> {
@@ -335,12 +360,7 @@ fn solve_clause_with_derived(
       let all = list.append(base_datoms, derived_datoms)
       
       let active = all
-        |> list.filter(fn(d: fact.Datom) {
-          case as_of_tx {
-            Some(tx) -> d.tx <= tx
-            _ -> True
-          }
-        })
+        |> filter_by_time(as_of_tx, as_of_valid)
         |> filter_active()
 
       list.map(active, fn(d: fact.Datom) {
@@ -360,17 +380,17 @@ fn solve_clause_with_derived(
       })
     }
     types.Negative(trip) -> {
-      case solve_triple_with_derived(db_state, trip, ctx, derived, as_of_tx) {
+      case solve_triple_with_derived(db_state, trip, ctx, derived, as_of_tx, as_of_valid) {
         [] -> [ctx]
         _ -> []
       }
     }
     types.Aggregate(var, func, target, filter_clauses) -> {
-      solve_aggregate(ctx, var, func, target, db_state, filter_clauses, [], as_of_tx)
+      solve_aggregate(ctx, var, func, target, db_state, filter_clauses, [], as_of_tx, as_of_valid)
     }
     types.Similarity(variable: var, vector: vec, threshold: threshold) -> solve_similarity(db_state, var, vec, threshold, ctx)
-    types.Filter(f) -> {
-      case f(ctx) {
+    types.Filter(expr) -> {
+      case eval_expression(expr, ctx) {
         True -> [ctx]
         False -> []
       }
@@ -380,6 +400,9 @@ fn solve_clause_with_derived(
       [dict.insert(ctx, var, val)]
     }
     types.Temporal(var, entity, attr, start, end) -> solve_temporal(db_state, var, entity, attr, start, end, ctx)
+    types.ShortestPath(from, to, edge, path_var, cost_var) -> solve_shortest_path(db_state, from, to, edge, path_var, cost_var, ctx)
+    types.PageRank(entity_var, edge, rank_var, d, iter) -> solve_pagerank(db_state, entity_var, edge, rank_var, d, iter, ctx)
+    types.Virtual(pred, args, outputs) -> solve_virtual(db_state, pred, args, outputs, ctx)
     _ -> [ctx]
   }
 }
@@ -390,6 +413,7 @@ fn solve_triple_with_derived(
   ctx: Dict(String, fact.Value),
   derived: Set(fact.Datom),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
 ) -> List(Dict(String, fact.Value)) {
   let #(e_p, attr, v_p) = triple
   let e_val = resolve_part(e_p, ctx)
@@ -429,12 +453,7 @@ fn solve_triple_with_derived(
   let all = list.append(base_datoms, derived_datoms)
   
   let active = all
-    |> list.filter(fn(d: fact.Datom) {
-      case as_of_tx {
-        Some(tx) -> d.tx <= tx
-        _ -> True
-      }
-    })
+    |> filter_by_time(as_of_tx, as_of_valid)
     |> filter_active()
 
   list.map(active, fn(d: fact.Datom) {
@@ -490,18 +509,40 @@ fn resolve_part_optional(part: types.Part, ctx: Dict(String, fact.Value)) -> Opt
 fn do_solve_clauses(
   db_state: types.DbState,
   clauses: List(types.BodyClause),
-  rules: List(Rule),
+  rules: List(types.Rule),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
   contexts: List(Dict(String, fact.Value)),
 ) -> List(Dict(String, fact.Value)) {
   case clauses {
     [] -> contexts
     [first, ..rest] -> {
-      let next_contexts =
-        list.flat_map(contexts, fn(ctx) {
-          solve_clause(db_state, first, ctx, rules, as_of_tx)
-        })
-      do_solve_clauses(db_state, rest, rules, as_of_tx, next_contexts)
+      let next_contexts = case list.length(contexts) > 500 {
+        True -> {
+          contexts
+          |> list.sized_chunk(100)
+          |> list.map(fn(chunk) {
+            let subject = process.new_subject()
+            process.spawn(fn() {
+              let result = list.flat_map(chunk, fn(ctx) {
+                solve_clause(db_state, first, ctx, rules, as_of_tx, as_of_valid)
+              })
+              process.send(subject, result)
+            })
+            subject
+          })
+          |> list.flat_map(fn(subj) {
+            let assert Ok(res) = process.receive(subj, 60000)
+            res
+          })
+        }
+        False -> {
+          list.flat_map(contexts, fn(ctx) {
+            solve_clause(db_state, first, ctx, rules, as_of_tx, as_of_valid)
+          })
+        }
+      }
+      do_solve_clauses(db_state, rest, rules, as_of_tx, as_of_valid, next_contexts)
     }
   }
 }
@@ -513,82 +554,23 @@ fn solve_aggregate(
   target_var: String,
   db_state: types.DbState,
   clauses: List(types.BodyClause),
-  rules: List(Rule),
+  rules: List(types.Rule),
   as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
 ) -> List(Dict(String, fact.Value)) {
   // 1. Resolve sub-results
   let sub_results = case clauses {
     [] -> [ctx]
-    _ -> do_solve_clauses(db_state, clauses, rules, as_of_tx, [ctx])
+    _ -> do_solve_clauses(db_state, clauses, rules, as_of_tx, as_of_valid, [ctx])
   }
   
   let target_values = list.filter_map(sub_results, fn(res) {
     dict.get(res, target_var)
   })
   
-  case target_values {
-    [] -> [ctx]
-    _ -> {
-      let result_val = case func {
-        types.Count -> fact.Int(list.length(target_values))
-        types.Sum -> {
-          let sum = list.fold(target_values, 0.0, fn(acc, v) {
-            case v {
-              fact.Int(i) -> acc +. int.to_float(i)
-              fact.Float(v) -> acc +. v
-              _ -> acc
-            }
-          })
-          fact.Float(sum)
-        }
-        types.Min -> {
-          let sorted = list.sort(target_values, compare_values)
-          list.first(sorted) |> result.unwrap(fact.Int(0))
-        }
-        types.Max -> {
-          let sorted = list.sort(target_values, compare_values) |> list.reverse
-          list.first(sorted) |> result.unwrap(fact.Int(0))
-        }
-        types.Avg -> {
-          let #(sum, count) = list.fold(target_values, #(0.0, 0), fn(acc, v) {
-            case v {
-              fact.Int(i) -> #(acc.0 +. int.to_float(i), acc.1 + 1)
-              fact.Float(v) -> #(acc.0 +. v, acc.1 + 1)
-              _ -> acc
-            }
-          })
-          case count {
-            0 -> fact.Float(0.0)
-            _ -> fact.Float(sum /. int.to_float(count))
-          }
-        }
-        types.Median -> {
-          let sorted = list.sort(target_values, compare_values)
-          let len = list.length(sorted)
-          case len {
-            0 -> fact.Int(0)
-            _ if len % 2 == 1 -> {
-              let idx = len / 2
-              list.drop(sorted, idx) |> list.first() |> result.unwrap(fact.Int(0))
-            }
-            _ -> {
-              let idx2 = len / 2
-              let idx1 = idx2 - 1
-              let v1 = list.drop(sorted, idx1) |> list.first() |> result.unwrap(fact.Int(0))
-              let v2 = list.drop(sorted, idx2) |> list.first() |> result.unwrap(fact.Int(0))
-              case v1, v2 {
-                fact.Int(i1), fact.Int(i2) -> fact.Float(int.to_float(i1 + i2) /. 2.0)
-                fact.Float(f1), fact.Float(f2) -> fact.Float({f1 +. f2} /. 2.0)
-                fact.Int(i), fact.Float(f) -> fact.Float({int.to_float(i) +. f} /. 2.0)
-                fact.Float(f), fact.Int(i) -> fact.Float({f +. int.to_float(i)} /. 2.0)
-                _, _ -> v1
-              }
-            }
-          }
-        }
-      }
-      [dict.insert(ctx, var, result_val)]
-    }
+  case aggregate.aggregate(target_values, func) {
+    Ok(val) -> [dict.insert(ctx, var, val)]
+    Error(_) -> [] 
   }
 }
 
@@ -707,6 +689,38 @@ pub fn pull(
           [] -> acc
         }
       }
+      Except(exclusions) -> {
+        list.fold(datoms, acc, fn(inner_acc, d: fact.Datom) {
+          case list.contains(exclusions, d.attribute) {
+            True -> inner_acc
+            False -> dict.insert(inner_acc, d.attribute, Single(d.value))
+          }
+        })
+      }
+      Recursion(attr, depth) -> {
+        case depth <= 0 {
+          True -> acc
+          False -> {
+            let values = list.filter(datoms, fn(d: fact.Datom) { d.attribute == attr }) |> list.map(fn(d) { d.value })
+            let results = list.map(values, fn(v) {
+              case v {
+                fact.Ref(next_id) -> {
+                  pull(db_state, fact.Uid(next_id), [Wildcard, Recursion(attr, depth - 1)])
+                }
+                fact.Int(next_id_int) -> {
+                  pull(db_state, fact.Uid(fact.EntityId(next_id_int)), [Wildcard, Recursion(attr, depth - 1)])
+                }
+                _ -> Single(v)
+              }
+            })
+            case results {
+              [r] -> dict.insert(acc, attr, r)
+              [_, ..] -> dict.insert(acc, attr, NestedMany(results))
+              [] -> acc
+            }
+          }
+        }
+      }
       Nested(name, sub_pattern) -> {
         let values = list.filter(datoms, fn(d: fact.Datom) { d.attribute == name }) |> list.map(fn(d) { d.value })
         case values {
@@ -727,7 +741,8 @@ pub fn pull(
               }
             })
             case res_list {
-              [r, ..] -> dict.insert(acc, name, r)
+              [r] -> dict.insert(acc, name, r)
+              [_, ..] -> dict.insert(acc, name, NestedMany(res_list))
               _ -> acc
             }
           }
@@ -763,3 +778,188 @@ fn solve_temporal(
     dict.insert(ctx, var, d.value)
   })
 }
+
+
+
+fn eval_expression(expr: types.Expression, ctx: Dict(String, fact.Value)) -> Bool {
+  case expr {
+    types.Eq(a, b) -> {
+      let val_a = resolve_part_optional(a, ctx)
+      let val_b = resolve_part_optional(b, ctx)
+      val_a == val_b && option.is_some(val_a)
+    }
+    types.Neq(a, b) -> {
+      let val_a = resolve_part_optional(a, ctx)
+      let val_b = resolve_part_optional(b, ctx)
+      val_a != val_b
+    }
+    types.Gt(a, b) -> {
+      let val_a = resolve_part_optional(a, ctx) |> option.unwrap(fact.Int(0))
+      let val_b = resolve_part_optional(b, ctx) |> option.unwrap(fact.Int(0))
+      compare_values(val_a, val_b) == order.Gt
+    }
+    types.Lt(a, b) -> {
+      let val_a = resolve_part_optional(a, ctx) |> option.unwrap(fact.Int(0))
+      let val_b = resolve_part_optional(b, ctx) |> option.unwrap(fact.Int(0))
+      compare_values(val_a, val_b) == order.Lt
+    }
+    types.And(l, r) -> eval_expression(l, ctx) && eval_expression(r, ctx)
+    types.Or(l, r) -> eval_expression(l, ctx) || eval_expression(r, ctx)
+  }
+}
+
+fn resolve_entity_id_from_part(part: types.Part, ctx: Dict(String, fact.Value)) -> Option(fact.EntityId) {
+  case resolve_part_optional(part, ctx) {
+    Some(fact.Ref(eid)) -> Some(eid)
+    Some(fact.Int(i)) -> Some(fact.EntityId(i))
+    _ -> None
+  }
+}
+
+fn solve_shortest_path(
+  db_state: types.DbState,
+  from: types.Part,
+  to: types.Part,
+  edge: String,
+  path_var: String,
+  cost_var: Option(String),
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let from_eid = resolve_entity_id_from_part(from, ctx)
+  let to_eid = resolve_entity_id_from_part(to, ctx)
+  
+  case from_eid, to_eid {
+    Some(f), Some(t) -> {
+      case graph.shortest_path(db_state, f, t, edge) {
+        Some(path) -> {
+          let path_val = fact.List(list.map(path, fact.Ref))
+          let ctx = dict.insert(ctx, path_var, path_val)
+          let ctx = case cost_var {
+            Some(cv) -> dict.insert(ctx, cv, fact.Int(list.length(path) - 1))
+            None -> ctx
+          }
+          [ctx]
+        }
+        None -> []
+      }
+    }
+    _, _ -> []
+  }
+}
+
+fn solve_pagerank(
+  db_state: types.DbState,
+  entity_var: String,
+  edge: String,
+  rank_var: String,
+  damping: Float,
+  iterations: Int,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let ranks = graph.pagerank(db_state, edge, damping, iterations)
+  
+  case dict.get(ctx, entity_var) {
+    Ok(fact.Ref(eid)) -> {
+      case dict.get(ranks, eid) {
+        Ok(rank) -> [dict.insert(ctx, rank_var, fact.Float(rank))]
+        Error(_) -> []
+      }
+    }
+    Ok(fact.Int(eid_int)) -> {
+      let eid = fact.EntityId(eid_int)
+      case dict.get(ranks, eid) {
+        Ok(rank) -> [dict.insert(ctx, rank_var, fact.Float(rank))]
+        Error(_) -> []
+      }
+    }
+    Error(_) -> {
+      // Unbound, generate all
+      dict.fold(ranks, [], fn(acc, eid, rank) {
+        let new_ctx = dict.insert(ctx, entity_var, fact.Ref(eid))
+        let new_ctx = dict.insert(new_ctx, rank_var, fact.Float(rank))
+        [new_ctx, ..acc]
+      })
+    }
+    _ -> []
+  }
+}
+
+fn solve_virtual(
+  db_state: types.DbState,
+  predicate: String,
+  args: List(types.Part),
+  outputs: List(String),
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let resolved_args = list.try_map(args, fn(arg) {
+    resolve_part_optional(arg, ctx) 
+    |> option.to_result(Nil)
+  })
+  
+  case resolved_args {
+    Ok(vals) -> {
+      case dict.get(db_state.virtual_predicates, predicate) {
+        Ok(adapter) -> {
+          let rows = adapter(vals)
+          list.filter_map(rows, fn(row) {
+             bind_virtual_outputs(ctx, outputs, row)
+          })
+        }
+        Error(_) -> []
+      }
+    }
+    Error(_) -> []
+  }
+}
+
+fn bind_virtual_outputs(
+  ctx: Dict(String, fact.Value),
+  outputs: List(String),
+  row: List(fact.Value),
+) -> Result(Dict(String, fact.Value), Nil) {
+  case list.length(outputs) == list.length(row) {
+    True -> {
+      list.zip(outputs, row)
+      |> list.try_fold(ctx, fn(acc, pair) {
+        let #(var, val) = pair
+        case dict.get(acc, var) {
+          Ok(existing) -> case existing == val {
+            True -> Ok(acc)
+            False -> Error(Nil)
+          }
+          Error(_) -> Ok(dict.insert(acc, var, val))
+        }
+      })
+    }
+    False -> Error(Nil)
+  }
+}
+
+pub fn diff(db_state: types.DbState, from_tx: Int, to_tx: Int) -> List(fact.Datom) {
+  index.get_all_datoms(db_state.eavt)
+  |> list.filter(fn(d) { d.tx > from_tx && d.tx <= to_tx })
+}
+
+pub fn explain(clauses: List(types.BodyClause)) -> String {
+  navigator.explain(clauses)
+}
+
+pub fn filter_by_time(
+  datoms: List(fact.Datom),
+  as_of_tx: Option(Int),
+  as_of_valid: Option(Int),
+) -> List(fact.Datom) {
+  datoms
+  |> list.filter(fn(d) {
+    let tx_ok = case as_of_tx {
+      Some(tx) -> d.tx <= tx
+      None -> True
+    }
+    let valid_ok = case as_of_valid {
+      Some(vt) -> d.valid_time <= vt
+      None -> True
+    }
+    tx_ok && valid_ok
+  })
+}
+

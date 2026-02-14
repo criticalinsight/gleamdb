@@ -1,8 +1,9 @@
 import gleam/list
 import gleamdb
-import gleamdb/fact.{Int}
-import gleamdb/shared/types.{Val, Var}
-import gleamdb/engine.{Rule}
+import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+import gleamdb/shared/types.{Rule, Val, Var}
+import gleamdb/engine
+import gleamdb/storage
 import gleam/dict
 import gleeunit
 import gleeunit/should

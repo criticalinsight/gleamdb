@@ -129,11 +129,13 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 *   **Innovation:** We treat each shard as a "City State" — fully autonomous but federated. This allows linear write scaling with core count.
 *   **Result:** Saturation of M3 Max hardware, pushing ingestion from ~2.5k to >10k durable events/sec.
 
-### Phase 25: Deterministic Identity (Idempotency)
-*   **The Problem:** Distributed nodes generating IDs independently lead to collisions or require expensive coordination (Snowflake).
-*   **The Solution:** Adopted **Content-Addressable Identity** using `phash2`.
-*   **Mechanism:** `fact.deterministic_uid(UniqueKey) -> EntityId`.
-*   **Result:** Nodes can independently generate the exact same ID for the same conceptual entity (e.g., "Market:BTC-USD") without talking to each other. This enables **Idempotent Ingestion** at scale.
+### Phase 26: The Intelligent Engine (Federation & Graph)
+*   **The Problem:** Analytical agents need to traverse complex networks (e.g., knowledge graphs) and access data residing outside the database (CSV, APIs).
+*   **The Solution:** 
+    1.  **Native Graph Predicates:** Implemented `ShortestPath` and `PageRank` as "Magic Predicates". PageRank pre-computes the graph structure before iterating to maximize BEAM performance.
+    2.  **Virtual Predicates (Federation):** Enabled runtime registration of external data adapters. The query engine delegates to these adapters, allowing seamless joins between internal facts and external worlds.
+    3.  **Time Travel (Diff API):** Exposed the ability to compute the exact set of datom-level changes (Assertions and Retractions) between any two transaction IDs.
+*   **Result:** GleamDB is no longer just a store; it is a unified knowledge service capable of complex reasoning and deep introspection.
 
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

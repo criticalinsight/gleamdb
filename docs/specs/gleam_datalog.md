@@ -136,6 +136,16 @@ pub fn query(db: Db, logic: String) -> Result(QueryResult, Error)
 pub fn as_of(db: Db, tx_id: Int) -> Db
 ```
 
+### 7. Advanced Predicates (Graph & Federation)
+Native algorithmic and external data primitives:
+*   **ShortestPath(from, to, edge, path_var, cost_var)**: BFS traversal over `edge` attribute.
+*   **PageRank(entity_var, edge, rank_var, damping, iterations)**: Iterative power method for node ranking.
+*   **Virtual(predicate, args, outputs)**: Delegation to registered external adapters (Federation).
+
+### 8. Time Travel API
+*   **`gleamdb.as_of(db, tx)`**: Query the database state as it existed at a specific transaction.
+*   - **`gleamdb.diff(db, start_tx, end_tx)`**: Retrieve all assertion/retraction datoms between two points in time.
+
 ## Security & Validation
 *   **AuthZ**: Capability-based security at the API boundary. The engine itself is trusted; wrappers provide security.
 *   **Input Validation**: All values must match the schema type of the Attribute (if enforced).
@@ -151,5 +161,5 @@ pub fn as_of(db: Db, tx_id: Int) -> Db
 
 ## Autonomous Pipeline Status
 1.  **Drafted**: ✅
-2.  **Test Plan**: `test/gleamdb/engine_test.gleam`
-3.  **Refactor Target**: `src/` structure creation.
+2.  **Implementation**: ✅ (Phase 26 complete)
+3.  **Verification**: `test/gleamdb/graph_algo_test.gleam`, `test/gleamdb/federation_test.gleam`, `test/gleamdb/diff_test.gleam`

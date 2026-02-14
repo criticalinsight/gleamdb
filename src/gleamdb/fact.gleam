@@ -1,6 +1,7 @@
 import gleam/string
 import gleam/list
 import gleam/bit_array
+import gleam/option.{type Option}
 
 
 @external(erlang, "erlang", "phash2")
@@ -24,6 +25,12 @@ pub fn ref(id: Int) -> EntityId {
   EntityId(id)
 }
 
+/// Create a unique, deterministic Entity ID for an event based on its type and timestamp.
+/// This ensures that the same event instance (e.g. from retries) always gets the same ID.
+pub fn event_uid(event_type: String, timestamp: Int) -> Eid {
+  deterministic_uid(#(event_type, timestamp))
+}
+
 pub type EntityId {
   EntityId(Int)
 }
@@ -35,7 +42,7 @@ pub type Attribute = String
 pub type Transaction = Int
 
 pub type DbFunction(state) =
-  fn(state, List(Value)) -> List(Fact)
+  fn(state, Int, Int, List(Value)) -> List(Fact)
 
 pub type LookupRef = #(Attribute, Value)
 
@@ -65,8 +72,19 @@ pub type Retention {
   Last(Int)
 }
 
+pub type Cardinality {
+  Many
+  One
+}
+
 pub type AttributeConfig {
-  AttributeConfig(unique: Bool, component: Bool, retention: Retention)
+  AttributeConfig(
+    unique: Bool,
+    component: Bool,
+    retention: Retention,
+    cardinality: Cardinality,
+    check: Option(String),
+  )
 }
 
 /// A Fact is #(Eid, Attribute, Value) for assertion,
@@ -79,6 +97,7 @@ pub type Datom {
     attribute: Attribute,
     value: Value,
     tx: Transaction,
+    valid_time: Int,
     operation: Operation,
   )
 }
@@ -121,6 +140,7 @@ pub fn encode_datom(d: Datom) -> BitArray {
     {byte_size(a_bits)}:32, a_bits:bits,
     op_id:8,
     d.tx:64,
+    d.valid_time:64,
     v_bits:bits
   >>
 }
@@ -179,7 +199,7 @@ fn decode_vec_loop(bits: BitArray, len: Int, acc: List(Float)) -> Result(#(List(
 
 pub fn decode_datom(bits: BitArray) -> Result(Datom, Nil) {
   case bits {
-    <<e_id:64, a_len:32, a_bits:bytes-size(a_len), op_id:8, tx:64, val_bits:bits>> -> {
+    <<e_id:64, a_len:32, a_bits:bytes-size(a_len), op_id:8, tx:64, vt:64, val_bits:bits>> -> {
       case bit_array.to_string(a_bits) {
         Ok(attr) -> {
           let op = case op_id {
@@ -193,6 +213,7 @@ pub fn decode_datom(bits: BitArray) -> Result(Datom, Nil) {
                 attribute: attr,
                 value: val,
                 tx: tx,
+                valid_time: vt,
                 operation: op,
               ))
             }

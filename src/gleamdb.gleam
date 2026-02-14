@@ -75,12 +75,51 @@ pub fn transact(db: Db, facts: List(Fact)) -> Result(DbState, String) {
   transactor.transact(db, facts)
 }
 
+pub fn transact_at(db: Db, facts: List(Fact), valid_time: Int) -> Result(DbState, String) {
+  let reply = process.new_subject()
+  process.send(db, transactor.Transact(facts, Some(valid_time), reply))
+  case process.receive(reply, 5000) {
+    Ok(res) -> res
+    Error(_) -> Error("Timeout")
+  }
+}
+
 pub fn transact_with_timeout(db: Db, facts: List(Fact), timeout_ms: Int) -> Result(DbState, String) {
   transactor.transact_with_timeout(db, facts, timeout_ms)
 }
 
 pub fn retract(db: Db, facts: List(Fact)) -> Result(DbState, String) {
   transactor.retract(db, facts)
+}
+
+pub fn retract_at(db: Db, facts: List(Fact), valid_time: Int) -> Result(DbState, String) {
+  let reply = process.new_subject()
+  process.send(db, transactor.Retract(facts, Some(valid_time), reply))
+  case process.receive(reply, 5000) {
+    Ok(res) -> res
+    Error(_) -> Error("Timeout")
+  }
+}
+
+pub fn with_facts(state: DbState, facts: List(Fact)) -> Result(DbState, String) {
+  transactor.compute_next_state(state, facts, None, fact.Assert)
+  |> result.map(fn(res) { res.0 })
+}
+
+pub fn get(db: Db, eid: fact.Eid, attr: String) -> List(fact.Value) {
+  let state = transactor.get_state(db)
+  let id = case eid {
+    fact.Uid(i) -> i
+    fact.Lookup(#(a, v)) -> {
+      index.get_entity_by_av(state.avet, a, v) |> result.unwrap(fact.EntityId(0))
+    }
+  }
+  index.get_datoms_by_entity_attr(state.eavt, id, attr)
+  |> list.map(fn(d) { d.value })
+}
+
+pub fn get_one(db: Db, eid: fact.Eid, attr: String) -> Result(fact.Value, Nil) {
+  get(db, eid, attr) |> list.first()
 }
 
 pub fn set_schema(db: Db, attr: String, config: AttributeConfig) -> Result(Nil, String) {
@@ -117,6 +156,11 @@ pub fn pull(
   engine.pull(state, fact.Uid(id), pattern)
 }
 
+pub fn diff(db: Db, from_tx: Int, to_tx: Int) -> List(fact.Datom) {
+  let state = transactor.get_state(db)
+  engine.diff(state, from_tx, to_tx)
+}
+
 pub fn pull_all() -> PullPattern {
   [engine.Wildcard]
 }
@@ -125,19 +169,41 @@ pub fn pull_attr(attr: String) -> PullPattern {
   [engine.Attr(attr)]
 }
 
-pub fn query(db: Db, q_clauses: List(BodyClause)) -> QueryResult {
-  let state = transactor.get_state(db)
-  engine.run(state, q_clauses, [], None)
+pub fn pull_except(exclusions: List(String)) -> PullPattern {
+  [engine.Except(exclusions)]
 }
 
-pub fn query_with_rules(db: Db, q_clauses: List(BodyClause), rules: List(engine.Rule)) -> QueryResult {
+pub fn pull_recursive(attr: String, depth: Int) -> PullPattern {
+  [engine.Recursion(attr, depth)]
+}
+
+pub fn query(db: Db, q_clauses: List(BodyClause)) -> QueryResult {
   let state = transactor.get_state(db)
-  engine.run(state, q_clauses, rules, None)
+  engine.run(state, q_clauses, [], None, None)
+}
+
+pub fn query_with_rules(db: Db, q_clauses: List(BodyClause), rules: List(types.Rule)) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, q_clauses, rules, None, None)
+}
+
+pub fn explain(q_clauses: List(BodyClause)) -> String {
+  engine.explain(q_clauses)
 }
 
 pub fn as_of(db: Db, tx: Int, q_clauses: List(BodyClause)) -> QueryResult {
   let state = transactor.get_state(db)
-  engine.run(state, q_clauses, [], Some(tx))
+  engine.run(state, q_clauses, [], Some(tx), None)
+}
+
+pub fn as_of_valid(db: Db, valid_time: Int, q_clauses: List(BodyClause)) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, q_clauses, [], None, Some(valid_time))
+}
+
+pub fn as_of_bitemporal(db: Db, tx: Int, valid_time: Int, q_clauses: List(BodyClause)) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, q_clauses, [], Some(tx), Some(valid_time))
 }
 
 pub fn p(triple: types.Clause) -> BodyClause {
@@ -152,8 +218,16 @@ pub fn register_function(
   transactor.register_function(db, name, func)
 }
 
-pub fn register_composite(db: Db, attrs: List(String)) -> Nil {
+pub fn register_composite(db: Db, attrs: List(String)) -> Result(Nil, String) {
   transactor.register_composite(db, attrs)
+}
+
+pub fn register_predicate(db: Db, name: String, pred: fn(fact.Value) -> Bool) -> Nil {
+  transactor.register_predicate(db, name, pred)
+}
+
+pub fn store_rule(db: Db, rule: types.Rule) -> Result(Nil, String) {
+  transactor.store_rule(db, rule)
 }
 
 pub fn subscribe(
@@ -162,7 +236,7 @@ pub fn subscribe(
   subscriber: Subject(types.ReactiveDelta),
 ) -> Nil {
   let state = transactor.get_state(db)
-  let results = engine.run(state, query, [], None)
+  let results = engine.run(state, query, [], None, None)
   
   let attrs = list.filter_map(query, fn(c) {
     case c {
@@ -176,6 +250,10 @@ pub fn subscribe(
   process.send(state.reactive_actor, msg)
   process.send(subscriber, types.Initial(results))
   Nil
+}
+
+pub fn get_state(db: Db) -> DbState {
+  transactor.get_state(db)
 }
 
 pub fn is_leader(db: Db) -> Bool {

@@ -2,12 +2,12 @@ import gleam/dict.{type Dict}
 import gleam/list
 import gleam/result
 import gleam/string
+import gleam/int
 import gleam/option.{type Option}
 import gleam/otp/actor
 import gleam/erlang/process
 import gleamdb
 import gleamdb/fact.{type Eid, Uid, Lookup}
-import gleamdb/global
 import gleamdb/shared/types.{type BodyClause, type DbState, type QueryResult}
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/engine.{type PullPattern, type PullResult, Map}
@@ -26,13 +26,41 @@ pub fn start_sharded(
   shard_count: Int,
   adapter: Option(StorageAdapter)
 ) -> Result(ShardedDb, String) {
-  let shards = list.range(0, shard_count - 1)
-  |> list.map(fn(i) {
+  let shards = int.range(from: 0, to: shard_count, with: [], run: fn(acc, i) {
     let shard_cluster_id = cluster_id <> "_s" <> string.inspect(i)
-    case gleamdb.start_distributed(shard_cluster_id, adapter) {
+    let res = case gleamdb.start_distributed(shard_cluster_id, adapter) {
       Ok(db) -> Ok(#(i, db))
       Error(e) -> Error("Failed to start shard " <> string.inspect(i) <> ": " <> string_inspect_actor_error(e))
     }
+    [res, ..acc]
+  })
+  |> list.try_map(fn(x) { x })
+
+  case shards {
+    Ok(s) -> {
+      Ok(ShardedDb(
+        shards: dict.from_list(s),
+        shard_count: shard_count,
+        cluster_id: cluster_id
+      ))
+    }
+    Error(e) -> Error(e)
+  }
+}
+
+/// Start a sharded database cluster in local (named) mode.
+pub fn start_local_sharded(
+  cluster_id: String,
+  shard_count: Int,
+  adapter: Option(StorageAdapter)
+) -> Result(ShardedDb, String) {
+  let shards = int.range(from: 0, to: shard_count, with: [], run: fn(acc, i) {
+    let shard_cluster_id = cluster_id <> "_s" <> string.inspect(i)
+    let res = case gleamdb.start_named(shard_cluster_id, adapter) {
+      Ok(db) -> Ok(#(i, db))
+      Error(e) -> Error("Failed to start local shard " <> string.inspect(i) <> ": " <> string_inspect_actor_error(e))
+    }
+    [res, ..acc]
   })
   |> list.try_map(fn(x) { x })
 
@@ -66,12 +94,6 @@ pub fn transact(db: ShardedDb, facts: List(fact.Fact)) -> Result(List(DbState), 
 
       // Scatter
       list.each(grouped_list, fn(pair) {
-      // - [x] Integrate GleamDB's Parallel Sharding into Gswarm.
-      // - [x] Phase 2: Native Identity Integration 🧙🏾‍♂️🛡️
-      //     - [x] Integrate `fact.deterministic_uid` into `market.gleam` and `result_fact.gleam`.
-      //     - [x] Transition `ShardedContext` to native `ShardedDb`.
-      //     - [x] Refactor `sharded_query.gleam` to use native Scatter-Gather.
-      //     - [x] Verify Gswarm test suite (13/13 Pass).
         let #(shard_id, shard_facts) = pair
         process.spawn(fn() {
           let assert Ok(shard_db) = dict.get(db.shards, shard_id)
@@ -84,12 +106,12 @@ pub fn transact(db: ShardedDb, facts: List(fact.Fact)) -> Result(List(DbState), 
       })
 
       // Gather
-      list.range(1, list.length(grouped_list))
-      |> list.map(fn(_) {
-        case process.receive(self, 5000) {
+      int.range(from: 0, to: list.length(grouped_list), with: [], run: fn(acc, _) {
+        let res = case process.receive(self, 5000) {
           Ok(res) -> res
           Error(_) -> Error("Timeout waiting for shard")
         }
+        [res, ..acc]
       })
       |> list.try_map(fn(x) { x })
     }
@@ -112,10 +134,9 @@ pub fn query(db: ShardedDb, clauses: List(BodyClause)) -> QueryResult {
   })
 
   // Gather
-  list.range(1, list.length(shard_list))
-  |> list.flat_map(fn(_) {
-    process.receive(self, 5000)
-    |> result.unwrap([])
+  int.range(from: 0, to: list.length(shard_list), with: [], run: fn(acc, _) {
+    let res = process.receive(self, 5000) |> result.unwrap([])
+    list.append(acc, res)
   })
 }
 
@@ -134,12 +155,21 @@ pub fn pull(db: ShardedDb, eid: Eid, pattern: PullPattern) -> PullResult {
   })
 
   // Gather
-  list.range(1, list.length(shard_list))
-  |> list.map(fn(_) {
-    process.receive(self, 5000)
-    |> result.unwrap(Map(dict.new()))
+  int.range(from: 0, to: list.length(shard_list), with: Map(dict.new()), run: fn(acc, _) {
+    let res = process.receive(self, 5000) |> result.unwrap(Map(dict.new()))
+    merge_pull_results(acc, res)
   })
-  |> list.fold(Map(dict.new()), merge_pull_results)
+}
+
+/// Stop the sharded database.
+pub fn stop(db: ShardedDb) -> Nil {
+  let shard_list = dict.to_list(db.shards)
+  list.each(shard_list, fn(pair) {
+    let #(_, shard_db) = pair
+    let assert Ok(pid) = process.subject_owner(shard_db)
+    process.unlink(pid)
+    process.kill(pid)
+  })
 }
 
 fn merge_pull_results(a: PullResult, b: PullResult) -> PullResult {
@@ -151,32 +181,13 @@ fn merge_pull_results(a: PullResult, b: PullResult) -> PullResult {
   }
 }
 
-/// Stop all shards in the database cluster.
-pub fn stop(db: ShardedDb) {
-  dict.each(db.shards, fn(i, shard_db) {
-    let shard_name = db.cluster_id <> "_s" <> string.inspect(i)
-    let _ = global.unregister("gleamdb_" <> shard_name)
-    let _ = global.unregister("gleamdb_leader")
-
-    let assert Ok(pid) = process.subject_owner(shard_db)
-    process.unlink(pid)
-    process.kill(pid)
-  })
-}
-
 fn get_shard_id(eid: Eid, shard_count: Int) -> Int {
-  case shard_count <= 1 {
-    True -> 0
-    False -> {
-      let hash = case eid {
-        Uid(fact.EntityId(id)) -> fact.phash2(id)
-        Lookup(#(attr, val)) -> fact.phash2(#(attr, val))
-      }
-      hash % shard_count
-    }
+  case eid {
+    Uid(fact.EntityId(id)) -> id % shard_count
+    Lookup(#(_, val)) -> fact.phash2(val) % shard_count
   }
 }
 
-fn string_inspect_actor_error(err: actor.StartError) -> String {
-  string.inspect(err)
+fn string_inspect_actor_error(e: actor.StartError) -> String {
+  string.inspect(e)
 }
