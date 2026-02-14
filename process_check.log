@@ -1,0 +1,89 @@
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:18:34
+   │
+18 │   let facts = list.flat_map(list.range(1, 100), fn(i) {
+   │                                  ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:46:29
+   │
+46 │   let facts = list.map(list.range(1, 49), fn(i) {
+   │                             ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:16:20
+   │
+16 │   let ticks = list.range(1, 100) |> list.map(fn(i) {
+   │                    ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Inefficient use of `list.length`
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:52:18
+   │
+52 │   should.be_true(list.length(values) > 0)
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+The `list.length` function has to iterate across the whole
+list to calculate the length, which is wasteful if you only
+need to know if the list is empty or not.
+
+Hint: You can use `the_list != []` instead.
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:61:8
+   │
+61 │   list.range(1, 10) |> list.each(fn(i) {
+   │        ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+    ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:108:8
+    │
+108 │   list.range(1, 5) |> list.each(fn(i) {
+    │        ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+  Compiling gleamdb
+error: Unknown module
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/src/gleamdb/event.gleam:75:5
+   │
+75 │     io.println("PROCESSS: Binding keys: " <> string.inspect(dict.keys(binding)))
+   │     ^^
+
+No module has been found with the name `io`.
+Hint: Did you mean to import `gleam/io`?
+
+error: Unknown module
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/src/gleamdb/event.gleam:78:9
+   │
+78 │         io.println("PROCESS: Found e, calling callback")
+   │         ^^
+
+No module has been found with the name `io`.
+Hint: Did you mean to import `gleam/io`?
+
+error: Unknown module
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/src/gleamdb/event.gleam:81:20
+   │
+81 │       Ok(other) -> io.println("PROCESS: Found e but value is not Ref: " <> string.inspect(other))
+   │                    ^^
+
+No module has been found with the name `io`.
+Hint: Did you mean to import `gleam/io`?
+
+error: Unknown module
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/src/gleamdb/event.gleam:82:19
+   │
+82 │       Error(_) -> io.println("PROCESS: Key e NOT FOUND")
+   │                   ^^
+
+No module has been found with the name `io`.
+Hint: Did you mean to import `gleam/io`?
+

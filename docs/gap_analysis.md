@@ -22,7 +22,7 @@ As GleamDB reaches Phase 23, it is a robust engine that has **closed the critica
 | **Raft HA** | ✅ | ✅ | ✅ | ❌ | **CRITICAL** |
 | **ID Sovereignty** | ✅ | ✅ | ✅ | ⚠️ | High (Safety) |
 | **Native Sharding** | ✅ | ⚠️ | ⚠️ | ⚠️ | **ULTRA** |
-| **Graph Algorithms** | ✅ | ✅ | ✅ | ✅ | High |
+| **Graph Algorithms** | ✅ (9) | ✅ | ✅ | ✅ | **ULTRA** |
 | **Federation** | ✅ | ⚠️ | ⚠️ | ✅ | Medium |
 | **Time Travel** | ✅ | ✅ | ✅ | ✅ | **CRITICAL** |
 
@@ -45,6 +45,7 @@ As GleamDB reaches Phase 23, it is a robust engine that has **closed the critica
 ### 13. The Chronos Sovereign (Phase 29) — ✅ Bitemporality (Valid Time vs System Time).
 ### 14. The Completeness (Phase 30) — ✅ Atomic Logic (Tx Functions) and Rich Integrity (Composites).
 ### 15. Sovereign Intelligence (Phase 31) — ✅ Distributed Aggregates and Parallel Query Execution.
+### 16. Graph Algorithm Suite (Phase 32) — ✅ 9 native predicates (ShortestPath, PageRank, Reachable, ConnectedComponents, Neighbors, CycleDetect, BetweennessCentrality, TopologicalSort, StronglyConnectedComponents).
 
 ---
 
@@ -56,5 +57,5 @@ As GleamDB reaches Phase 23, it is a robust engine that has **closed the critica
 
 ---
 
-## Current Status: Phase 31 - Sovereign Intelligence (v1.9.0) 🧙🏾‍♂️
-GleamDB v1.9.0 is an intelligent, analytical, and parallel processing engine.
+## Current Status: Phase 32 - Graph Algorithm Suite (v2.0.0) 🧙🏾‍♂️
+GleamDB v2.0.0 is an intelligent, analytical, graph-aware, and parallel processing engine.

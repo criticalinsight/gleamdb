@@ -1,23 +1,32 @@
 # Graph Algorithms (Native Predicates)
 
-GleamDB provides native graph algorithms implemented as "Magic Predicates" within the Datalog engine. This allows for complex network analysis without leaving the logic paradigm.
+GleamDB provides **9 native graph algorithms** implemented as "Magic Predicates" within the Datalog engine. This allows for complex network analysis — cycle detection, centrality scoring, topological ordering — without leaving the logic paradigm.
 
-## Implementation Pattern: De-complected Traversals
-Following the philosophy of Rich Hickey, we de-complect the graph traversal from the query planning.
+## Philosophy: De-complected Traversals
 
-1.  **Uniformity**: Graph algorithms are exposed as standard `BodyClause` types.
-2.  **High Performance**: PageRank pre-computes the graph structure (adjacency lists and out-degrees) before iterating, ensuring that the iterative power method is efficient.
-3.  **Correctness by Construction**: BFS (Shortest Path) ensures the most optimal route is found in O(V + E) time.
+1.  **Uniformity**: Every algorithm is exposed as a standard `BodyClause` variant.
+2.  **Composability**: Predicates compose freely with Datalog joins, filters, and aggregates.
+3.  **Index-Native**: All algorithms directly traverse `EAVT`/`AEVT` indices — no external graph database needed.
+4.  **Purely Functional**: ~700 lines of immutable, recursion-based algorithms in `algo/graph.gleam`.
 
-## Usage
+## Predicate Reference
 
-### Shortest Path
-Find the shortest sequence of entities between two nodes via a specific edge attribute.
+| # | DSL Function | Algorithm | Complexity | Use Case |
+|---|-------------|-----------|------------|----------|
+| 1 | `q.shortest_path` | BFS | O(V+E) | Path finding between two nodes |
+| 2 | `q.pagerank` | Iterative Power | O(V×I) | Influence/importance ranking |
+| 3 | `q.reachable` | BFS flood | O(V+E) | Transitive closure from a node |
+| 4 | `q.connected_components` | BFS flood-fill | O(V+E) | Undirected cluster labeling |
+| 5 | `q.neighbors` | Bounded BFS | O(V+E) | K-hop neighborhood exploration |
+| 6 | `q.cycle_detect` | DFS back-edge | O(V+E) | Circular dependency / wash-trade detection |
+| 7 | `q.betweenness_centrality` | Brandes' | O(V×E) | Gatekeeper / broker node identification |
+| 8 | `q.topological_sort` | Kahn's | O(V+E) | DAG ordering / dependency resolution |
+| 9 | `q.strongly_connected_components` | Tarjan's | O(V+E) | Directed mutual-reachability clusters |
 
+## Usage Examples
+
+### 1. Shortest Path
 ```gleam
-import gleamdb/q
-
-// Find the path from London to Paris
 let query = q.new()
   |> q.where(q.v("start"), "city/name", q.s("London"))
   |> q.where(q.v("end"), "city/name", q.s("Paris"))
@@ -25,13 +34,8 @@ let query = q.new()
   |> q.to_clauses()
 ```
 
-### PageRank
-Compute the relative importance of nodes in a directed graph.
-
+### 2. PageRank
 ```gleam
-import gleamdb/q
-
-// Calculate ranks for all nodes connected by "link"
 let query = q.new()
   |> q.pagerank("node", "link", "rank")
   |> q.order_by("rank", Desc)
@@ -39,7 +43,74 @@ let query = q.new()
   |> q.to_clauses()
 ```
 
+### 3. Reachable (Transitive Closure)
+```gleam
+let query = q.new()
+  |> q.where(q.v("root"), "name", q.s("Alice"))
+  |> q.reachable(q.v("root"), "follows", "reached")
+  |> q.to_clauses()
+```
+
+### 4. Connected Components
+```gleam
+let query = q.new()
+  |> q.connected_components("friend_of", "person", "cluster")
+  |> q.to_clauses()
+```
+
+### 5. K-hop Neighbors
+```gleam
+let query = q.new()
+  |> q.where(q.v("me"), "name", q.s("Bob"))
+  |> q.neighbors(q.v("me"), "knows", 2, "friend")
+  |> q.to_clauses()
+```
+
+### 6. Cycle Detection
+```gleam
+// Find circular trading patterns (wash-trade detection)
+let query = q.new()
+  |> q.cycle_detect("trades_with", "cycle")
+  |> q.to_clauses()
+```
+
+### 7. Betweenness Centrality
+```gleam
+// Find gatekeeper nodes in a network
+let query = q.new()
+  |> q.betweenness_centrality("link", "node", "score")
+  |> q.order_by("score", Desc)
+  |> q.limit(5)
+  |> q.to_clauses()
+```
+
+### 8. Topological Sort
+```gleam
+// Order build dependencies
+let query = q.new()
+  |> q.topological_sort("depends_on", "module", "build_order")
+  |> q.order_by("build_order", Asc)
+  |> q.to_clauses()
+```
+
+### 9. Strongly Connected Components (Tarjan's)
+```gleam
+// Find mutual-reachability clusters (trading rings, circular imports)
+let query = q.new()
+  |> q.strongly_connected_components("imports", "module", "scc_id")
+  |> q.to_clauses()
+```
+
 ## Technical Details
-- **Shortest Path**: Uses a standard Breadth-First Search (BFS).
-- **PageRank**: Implements the iterative power method with a default damping factor of 0.85 and 20 iterations.
-- **Index Usage**: Algorithms directly query the `EAVT` and `AEVT` indices for high-speed edge lookups.
+
+- **Shortest Path**: BFS with path tracking. Returns `fact.List(Ref)`.
+- **PageRank**: Iterative power method (damping=0.85, 20 iterations). Returns `fact.Float`.
+- **Reachable**: BFS flood from source. Includes source node in results.
+- **Connected Components**: Undirected flood-fill. Each node gets an `Int` component ID.
+- **Neighbors**: Depth-bounded BFS. Excludes source node from results.
+- **Cycle Detect**: DFS with back-edge tracking. Returns each cycle as `fact.List(Ref)`.
+- **Betweenness Centrality**: Brandes' algorithm. Returns `fact.Float` score per node.
+- **Topological Sort**: Kahn's BFS-based algorithm. Returns `Int` position. Empty result if cycles exist.
+- **Strongly Connected Components**: Tarjan's DFS algorithm. Returns `Int` component ID per node.
+
+All algorithms use the shared `build_graph` infrastructure which constructs adjacency lists from the `AEVT` index.

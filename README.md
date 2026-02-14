@@ -19,7 +19,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Native `phash2` support enables deterministic Entity IDs for **Idempotent Transactions**.
 - **Native Sharding (v1.7.0)**: Horizontal partition of facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware. Each shard is an isolated Raft consensus group.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
-- **Graph Algorithms**: Native `ShortestPath` (BFS) and `PageRank` Magic Predicates for complex network analysis.
+- **Graph Algorithm Suite (9 predicates)**: Native `ShortestPath`, `PageRank`, `Reachable`, `ConnectedComponents`, `Neighbors`, `CycleDetect`, `BetweennessCentrality`, `TopologicalSort`, and `StronglyConnectedComponents` — all as composable Datalog predicates.
 - **Data Federation**: Query external data sources (CSV, JSON, APIs) as if they were internal facts via `Virtual` predicates.
 - **Time Travel (Diff)**: Deep temporal introspection with `gleamdb.diff`.
 - **Speculative Soul (Phase 27)**: Treat the database as a pure value with `gleamdb.with_facts` — non-persistent, what-if state transitions.
@@ -42,7 +42,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 Add `gleamdb` to your `gleam.toml`:
 ```toml
 [dependencies]
-gleamdb = "1.7.0"
+gleamdb = "2.0.0"
 ```
 
 Initialize with **Silicon Saturation** (ETS-backed indices) for O(1) concurrent reads:
@@ -132,6 +132,17 @@ let query = q.new()
   |> q.where(q.v("a"), "city/name", q.s("London"))
   |> q.where(q.v("b"), "city/name", q.s("Paris"))
   |> q.shortest_path(q.v("a"), q.v("b"), "route/to", "path")
+  |> q.to_clauses()
+
+// 1b. Graph: Detect trading rings
+let query = q.new()
+  |> q.cycle_detect("trades_with", "cycle")
+  |> q.to_clauses()
+
+// 1c. Graph: Find gatekeepers
+let query = q.new()
+  |> q.betweenness_centrality("link", "node", "score")
+  |> q.order_by("score", Desc)
   |> q.to_clauses()
 
 // 2. Federation: Query CSV joined with internal user data

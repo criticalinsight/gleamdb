@@ -46,6 +46,9 @@ Atomic Transaction Functions and Composite Constraints for total integrity.
 ### [x] Sovereign Intelligence (Phase 31)
 distributed Aggregates (`Sum`, `Count`, `Avg`, `Max`, `Min`, `Median`) and Parallel Query Execution.
 
+### [x] Graph Algorithm Suite (Phase 32)
+9 native graph predicates: `ShortestPath`, `PageRank`, `Reachable`, `ConnectedComponents`, `Neighbors`, `CycleDetect`, `BetweennessCentrality`, `TopologicalSort`, `StronglyConnectedComponents`. Pure immutable algorithms (~700 lines). Composable with Datalog joins.
+
 ---
 
 ## Future Directions (Phase 24+)
@@ -60,7 +63,7 @@ distributed Aggregates (`Sum`, `Count`, `Avg`, `Max`, `Min`, `Median`) and Paral
 
 ---
 
-## Current Status: Phase 31 (Sovereign Intelligence)
-All original roadmap items and the Sovereign Intelligence vision are complete. The system is correct, durable, speculative, parallel, and horizontally scalable.
+## Current Status: Phase 32 (Graph Algorithm Suite) — v2.0.0
+All original roadmap items, Sovereign Intelligence, and Graph Algorithm Suite are complete. The system is correct, durable, speculative, parallel, horizontally scalable, and graph-intelligent.
 
-🧙🏾‍♂️: "A system that is correct, durable, sovereign, AND resilient is no longer a prototype. It is a foundation for intelligence."
+🧙🏾‍♂️: "A system that is correct, durable, sovereign, AND graph-intelligent is no longer a prototype. It is a foundation for intelligence."

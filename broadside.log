@@ -1,0 +1,296 @@
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:18:34
+   │
+18 │   let facts = list.flat_map(list.range(1, 100), fn(i) {
+   │                                  ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:46:29
+   │
+46 │   let facts = list.map(list.range(1, 49), fn(i) {
+   │                             ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:16:20
+   │
+16 │   let ticks = list.range(1, 100) |> list.map(fn(i) {
+   │                    ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Inefficient use of `list.length`
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:52:18
+   │
+52 │   should.be_true(list.length(values) > 0)
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+The `list.length` function has to iterate across the whole
+list to calculate the length, which is wasteful if you only
+need to know if the list is empty or not.
+
+Hint: You can use `the_list != []` instead.
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:61:8
+   │
+61 │   list.range(1, 10) |> list.each(fn(i) {
+   │        ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+    ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:108:8
+    │
+108 │   list.range(1, 5) |> list.each(fn(i) {
+    │        ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+  Compiling gleamdb
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/event_test.gleam:9:27
+  │
+9 │ import gleamdb/fact.{Str, Ref}
+  │                           ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+   Compiled in 0.39s
+    Running gleamdb_test.main
+Reactive: Notify for attrs: ["name", "parent"]
+[32m.[39mReactive: Notify for attrs: ["user/age"]
+[32m.[39mReactive: Notify for attrs: ["user/age"]
+Reactive: Notify for attrs: ["user/age"]
+[32m.[39mReactive: Notify for attrs: ["order/items", "item/name"]
+Reactive: Notify for attrs: ["order/items"]
+[32m.[39mReactive: Notify for attrs: ["user/org", "user/email"]
+Reactive: Notify for attrs: ["user/org", "user/email"]
+[32m.[39mReactive: Notify for attrs: ["name", "age"]
+[32m.[39m[32m.[39m[32m.[39mRunning supervision_test
+[32m.[39m[32m.[39mReactive: Notify for attrs: ["event/type", "event/timestamp", "user/email"]
+[32m.[39mReactive: Notify for attrs: ["event/type", "event/timestamp"]
+Reactive: Notify for attrs: ["event/type", "event/timestamp"]
+[32m.[39mEVENT: Setting up listener for trigger/me
+Reactive: New Subscription for attrs: ["event/type"]
+EVENT: Spawned event_loop process
+Reactive: Notify for attrs: ["event/type", "event/timestamp"]
+Reactive: Affected query found, running...
+Reactive: Changes found, sending Delta
+
+[1m[31mlet assert[39m[22m [90mtest/gleamdb/event_test.gleam:75[39m
+[36m test[39m: gleamdb@event_test.event_reactive_test
+[36m code[39m: let assert Ok(received_eid) = process.receive(self_subject, 5000)
+[36mvalue[39m: Error(Nil)
+[36m info[39m: Pattern match failed, no pattern matched the value.
+Reactive: Notify for attrs: ["user/name", "user/age"]
+Reactive: Notify for attrs: ["user/age"]
+Reactive: Notify for attrs: ["user/age"]
+[32m.[39mReactive: Notify for attrs: ["system/status"]
+[32m.[39mReactive: Notify for attrs: ["type", "val"]
+Reactive: Notify for attrs: ["type", "val"]
+[32m.[39mReactive: Notify for attrs: ["parent"]
+[32m.[39mReactive: Notify for attrs: ["name", "age", "friend"]
+[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39mReactive: Notify for attrs: ["chat/id", "chat/msg"]
+Reactive: New Subscription for attrs: ["chat/id", "chat/msg"]
+Reactive: Notify for attrs: ["chat/id", "chat/msg"]
+Reactive: Affected query found, running...
+Reactive: Changes found, sending Delta
+Received Delta Added
+Reactive: Notify for attrs: ["chat/msg"]
+Reactive: Affected query found, running...
+Reactive: Changes found, sending Delta
+Received Delta Removed
+[32m.[39mReactive: Notify for attrs: ["parent"]
+[32m.[39mReactive: Notify for attrs: ["name", "age", "location"]
+[32m.[39mReactive: Notify for attrs: ["status"]
+Reactive: Notify for attrs: ["status"]
+[32m.[39mReactive: Notify for attrs: ["username"]
+Reactive: Notify for attrs: ["username"]
+[32m.[39mReactive: Notify for attrs: ["user/name", "user/profile", "profile/bio"]
+Reactive: Notify for attrs: ["user/name"]
+Reactive: Notify for attrs: ["user/name", "user/profile"]
+[32m.[39mReactive: Notify for attrs: ["age"]
+Reactive: Notify for attrs: ["age"]
+[32m.[39mReactive: Notify for attrs: ["user/email"]
+[32m.[39mReactive: Notify for attrs: ["tag"]
+Reactive: Notify for attrs: ["tag"]
+[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39mReactive: Notify for attrs: ["doc/id", "doc/embedding"]
+[32m.[39mReactive: Notify for attrs: ["v"]
+[32m.[39mReactive: Notify for attrs: ["user/embedding"]
+[32m.[39m=ERROR REPORT==== 14-Feb-2026::22:49:47.506624 ===
+global: <0.252.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,48>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.506842 ===
+global: <0.254.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,49>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.506954 ===
+global: <0.256.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,50>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.507085 ===
+global: <0.258.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,51>>]
+
+Reactive: Notify for attrs: ["test/status"]
+Reactive: Notify for attrs: ["test/status"]
+[32m.[39m=ERROR REPORT==== 14-Feb-2026::22:49:47.510952 ===
+global: <0.267.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,48>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511051 ===
+global: <0.269.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,49>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511156 ===
+global: <0.271.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,50>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511253 ===
+global: <0.273.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,51>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511351 ===
+global: <0.275.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,52>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511424 ===
+global: <0.277.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,53>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511524 ===
+global: <0.279.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,54>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.511619 ===
+global: <0.281.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,55>>]
+
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+[32m.[39m=ERROR REPORT==== 14-Feb-2026::22:49:47.514646 ===
+global: <0.295.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,101,100,103,101,95,115,48>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.514758 ===
+global: <0.297.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,101,100,103,101,95,115,49>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.514870 ===
+global: <0.299.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,101,100,103,101,95,49,95,115,48>>]
+
+Reactive: Notify for attrs: ["a"]
+[32m.[39m=ERROR REPORT==== 14-Feb-2026::22:49:47.517249 ===
+global: <0.303.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,116,111,112,95,115,48>>]
+
+=ERROR REPORT==== 14-Feb-2026::22:49:47.517329 ===
+global: <0.305.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,116,111,112,95,115,49>>]
+
+[32m.[39mReactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+Reactive: Notify for attrs: ["tick/price"]
+[32m.[39mReactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+Reactive: Notify for attrs: ["val"]
+[32m.[39mReactive: Notify for attrs: ["score"]
+Reactive: Notify for attrs: ["score"]
+Reactive: Notify for attrs: ["score"]
+Reactive: Notify for attrs: ["score"]
+[32m.[39m[31m
+60 passed, 1 failures[39m

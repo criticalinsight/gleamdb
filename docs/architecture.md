@@ -137,5 +137,18 @@ Throughout development, we asked: *Is the increased complexity worth the utility
     3.  **Time Travel (Diff API):** Exposed the ability to compute the exact set of datom-level changes (Assertions and Retractions) between any two transaction IDs.
 *   **Result:** GleamDB is no longer just a store; it is a unified knowledge service capable of complex reasoning and deep introspection.
 
+### Phase 32: Graph Algorithm Suite (9 Native Predicates)
+*   **The Problem:** ShortestPath and PageRank alone were insufficient for real-world graph intelligence — trading ring detection, dependency resolution, and broker identification required a comprehensive analytical stack.
+*   **The Solution:** Expanded from 2 to **9 native graph predicates**, all implemented as pure, immutable algorithms in `algo/graph.gleam` (~700 lines):
+    1.  **Reachable** — Transitive closure via BFS flood
+    2.  **ConnectedComponents** — Undirected cluster labeling
+    3.  **Neighbors** — Bounded K-hop exploration
+    4.  **CycleDetect** — DFS back-edge detection for circular patterns
+    5.  **BetweennessCentrality** — Brandes' algorithm for gatekeeper identification
+    6.  **TopologicalSort** — Kahn's algorithm for dependency ordering
+    7.  **StronglyConnectedComponents** — Tarjan's algorithm for directed mutual-reachability clusters
+*   **Innovation:** Every predicate composes freely with Datalog joins, filters, and aggregates via the fluent `q` DSL. All algorithms share `build_graph` infrastructure over AEVT indices.
+*   **Result:** A complete graph intelligence stack for Gswarm (trading analysis) and Sly (code dependency analysis).
+
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

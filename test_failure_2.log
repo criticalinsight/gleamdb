@@ -1,0 +1,485 @@
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/composite_uniqueness_test.gleam:1:22
+  │
+1 │ import gleam/option.{None, Some}
+  │                      ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/composite_uniqueness_test.gleam:1:28
+  │
+1 │ import gleam/option.{None, Some}
+  │                            ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/diff_test.gleam:2:22
+  │
+2 │ import gleam/option.{None, Some}
+  │                      ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/diff_test.gleam:2:28
+  │
+2 │ import gleam/option.{None, Some}
+  │                            ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/diff_test.gleam:3:1
+  │
+3 │ import gleam/dict
+  │ ^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/diff_test.gleam:6:22
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                      ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/diff_test.gleam:6:27
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                           ^^^^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/diff_test.gleam:6:47
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                                               ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/event_test.gleam:9:27
+  │
+9 │ import gleamdb/fact.{Str, Ref}
+  │                           ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/federation_test.gleam:2:28
+  │
+2 │ import gleam/option.{None, Some}
+  │                            ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/federation_test.gleam:5:1
+  │
+5 │ import gleamdb
+  │ ^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/federation_test.gleam:6:22
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                      ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/federation_test.gleam:6:27
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                           ^^^^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/federation_test.gleam:6:47
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                                               ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/graph_algo_test.gleam:11:22
+   │
+11 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+   │                      ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/graph_algo_test.gleam:11:42
+   │
+11 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+   │                                          ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused variable
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/navigator_test.gleam:52:7
+   │
+52 │   let output = navigator.explain(clauses)
+   │       ^^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_output`.
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/navigator_test.gleam:54:32
+   │
+54 │   should.be_true(list.any(list.range(0, 0), fn(_) { True })) // Just check if it runs without panic
+   │                                ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:3:22
+  │
+3 │ import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+  │                      ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:3:27
+  │
+3 │ import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+  │                           ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:3:32
+  │
+3 │ import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+  │                                ^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:3:39
+  │
+3 │ import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+  │                                       ^^^^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:3:54
+  │
+3 │ import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+  │                                                      ^^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:5:1
+  │
+5 │ import gleamdb/engine
+  │ ^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:6:1
+  │
+6 │ import gleamdb/storage
+  │ ^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:19:34
+   │
+19 │   let facts = list.flat_map(list.range(1, 100), fn(i) {
+   │                                  ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/performance_test.gleam:47:29
+   │
+47 │   let facts = list.map(list.range(1, 49), fn(i) {
+   │                             ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Unused imported type
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/phase27_test.gleam:5:30
+  │
+5 │ import gleamdb/shared/types.{type DbState}
+  │                              ^^^^^^^^^^^^ This imported type is never used
+
+Hint: You can safely remove it.
+
+warning: Unused variable
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/phase27_test.gleam:24:7
+   │
+24 │   let res2 = gleamdb.pull(db, fact.Uid(fact.EntityId(1)), [Wildcard])
+   │       ^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_res2`.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/recursion_test.gleam:5:36
+  │
+5 │ import gleamdb/shared/types.{Rule, Val, Var}
+  │                                    ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/recursion_test.gleam:5:41
+  │
+5 │ import gleamdb/shared/types.{Rule, Val, Var}
+  │                                         ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/recursion_test.gleam:6:24
+  │
+6 │ import gleamdb/engine.{Single, Many}
+  │                        ^^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/recursion_test.gleam:6:32
+  │
+6 │ import gleamdb/engine.{Single, Many}
+  │                                ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/recursion_test.gleam:7:1
+  │
+7 │ import gleamdb/storage
+  │ ^^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/schema_guard_test.gleam:1:28
+  │
+1 │ import gleam/option.{None, Some}
+  │                            ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported type
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/sovereign_fabric_test.gleam:6:22
+  │
+6 │ import gleamdb/fact.{type AttributeConfig, AttributeConfig, All, Int, Str}
+  │                      ^^^^^^^^^^^^^^^^^^^^ This imported type is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/sovereign_fabric_test.gleam:6:44
+  │
+6 │ import gleamdb/fact.{type AttributeConfig, AttributeConfig, All, Int, Str}
+  │                                            ^^^^^^^^^^^^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/sovereign_fabric_test.gleam:6:61
+  │
+6 │ import gleamdb/fact.{type AttributeConfig, AttributeConfig, All, Int, Str}
+  │                                                             ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/stored_rule_test.gleam:2:22
+  │
+2 │ import gleam/option.{None, Some}
+  │                      ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/stored_rule_test.gleam:2:28
+  │
+2 │ import gleam/option.{None, Some}
+  │                            ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/stored_rule_test.gleam:6:37
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                                     ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/stored_rule_test.gleam:6:42
+  │
+6 │ import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+  │                                          ^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported module
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/stored_rule_test.gleam:7:1
+  │
+7 │ import gleamdb/engine
+  │ ^^^^^^^^^^^^^^^^^^^^^ This imported module is never used
+
+Hint: You can safely remove it.
+
+warning: Unused variable
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/stored_rule_test.gleam:31:7
+   │
+31 │   let gc = Uid(EntityId(3))
+   │       ^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_gc`.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/transaction_function_test.gleam:3:22
+  │
+3 │ import gleam/option.{None, Some}
+  │                      ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused imported item
+  ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/transaction_function_test.gleam:3:28
+  │
+3 │ import gleam/option.{None, Some}
+  │                            ^^^^ This imported constructor is never used
+
+Hint: You can safely remove it.
+
+warning: Unused function argument
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/transaction_function_test.gleam:57:24
+   │
+57 │   let temporal_fn = fn(state: types.DbState, _tx: Int, vt: Int, _args: List(fact.Value)) {
+   │                        ^^^^^ This argument is never used
+
+Hint: You can ignore it with an underscore: `_state`.
+
+warning: Unused variable
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/gleamdb/transaction_function_test.gleam:70:7
+   │
+70 │   let state = gleamdb.get_state(db)
+   │       ^^^^^ This variable is never used
+
+Hint: You can ignore it with an underscore: `_state`.
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:16:20
+   │
+16 │   let ticks = list.range(1, 100) |> list.map(fn(i) {
+   │                    ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Inefficient use of `list.length`
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:52:18
+   │
+52 │   should.be_true(list.length(values) > 0)
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+The `list.length` function has to iterate across the whole
+list to calculate the length, which is wasteful if you only
+need to know if the list is empty or not.
+
+Hint: You can use `the_list != []` instead.
+
+warning: Deprecated value used
+   ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:61:8
+   │
+61 │   list.range(1, 10) |> list.each(fn(i) {
+   │        ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+warning: Deprecated value used
+    ┌─ /Users/brixelectronics/Documents/mac/gleamdb/test/time_series_test.gleam:108:8
+    │
+108 │   list.range(1, 5) |> list.each(fn(i) {
+    │        ^^^^^ This value has been deprecated
+
+It was deprecated with this message: Use int.range instead
+
+   Compiled in 0.08s
+    Running gleamdb_test.main
+[32m.[39m
+[1m[31mpanic[39m[22m [90msrc/gleeunit/should.gleam:10[39m
+[36m test[39m: gleamdb@advanced_test.aggregation_test
+[36m info[39m: 
+Ok(Int(105))
+should equal
+Ok(Float(105.0))
+[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39mRunning supervision_test
+[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39mReceived Delta Added
+Received Delta Removed
+[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m[32m.[39m=ERROR REPORT==== 15-Feb-2026::01:01:57.853460 ===
+global: <0.323.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,48>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.853640 ===
+global: <0.325.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,49>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.853734 ===
+global: <0.327.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,50>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.853891 ===
+global: <0.329.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,105,100,101,110,116,105,116,121,95,115,51>>]
+
+[32m.[39m=ERROR REPORT==== 15-Feb-2026::01:01:57.856482 ===
+global: <0.338.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,48>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.856604 ===
+global: <0.340.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,49>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.856701 ===
+global: <0.342.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,50>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.856846 ===
+global: <0.344.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,51>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.856968 ===
+global: <0.346.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,52>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.857076 ===
+global: <0.348.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,53>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.857152 ===
+global: <0.350.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,54>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.857244 ===
+global: <0.352.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,99,97,108,105,110,103,95,115,55>>]
+
+[32m.[39m=ERROR REPORT==== 15-Feb-2026::01:01:57.860557 ===
+global: <0.366.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,101,100,103,101,95,115,48>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.860650 ===
+global: <0.368.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,101,100,103,101,95,115,49>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.860724 ===
+global: <0.370.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,101,100,103,101,95,49,95,115,48>>]
+
+[32m.[39m=ERROR REPORT==== 15-Feb-2026::01:01:57.863521 ===
+global: <0.374.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,116,111,112,95,115,48>>]
+
+=ERROR REPORT==== 15-Feb-2026::01:01:57.863602 ===
+global: <0.376.0> registered under several names: [<<103,108,101,97,109,100,98,95,108,101,97,100,101,114>>,<<103,108,101,97,109,100,98,95,116,101,115,116,95,115,104,97,114,100,101,100,95,115,116,111,112,95,115,49>>]
+
+[32m.[39m[32m.[39m[32m.[39m[32m.[39m[31m
+91 passed, 1 failures[39m
