@@ -176,6 +176,72 @@ pub fn virtual(
   QueryBuilder(clauses: list.append(builder.clauses, [clause]))
 }
 
+/// Find all nodes reachable from a starting node via an edge attribute (transitive closure).
+pub fn reachable(
+  builder: QueryBuilder,
+  from: types.Part,
+  edge: String,
+  node_var: String,
+) -> QueryBuilder {
+  let clause = types.Reachable(from, edge, node_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Label each node with a connected component ID.
+pub fn connected_components(
+  builder: QueryBuilder,
+  edge: String,
+  entity_var: String,
+  component_var: String,
+) -> QueryBuilder {
+  let clause = types.ConnectedComponents(edge, entity_var, component_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Find all nodes within K hops of a starting node.
+pub fn neighbors(
+  builder: QueryBuilder,
+  from: types.Part,
+  edge: String,
+  depth: Int,
+  node_var: String,
+) -> QueryBuilder {
+  let clause = types.Neighbors(from, edge, depth, node_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Detect cycles in directed graph. Each result binds a List of entity refs forming a cycle.
+pub fn cycle_detect(
+  builder: QueryBuilder,
+  edge: String,
+  cycle_var: String,
+) -> QueryBuilder {
+  let clause = types.CycleDetect(edge, cycle_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Calculate betweenness centrality (Brandes' algorithm) for each node.
+pub fn betweenness_centrality(
+  builder: QueryBuilder,
+  edge: String,
+  entity_var: String,
+  score_var: String,
+) -> QueryBuilder {
+  let clause = types.BetweennessCentrality(edge, entity_var, score_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Topological ordering of a DAG. Returns empty if cycles exist.
+pub fn topological_sort(
+  builder: QueryBuilder,
+  edge: String,
+  entity_var: String,
+  order_var: String,
+) -> QueryBuilder {
+  let clause = types.TopologicalSort(edge, entity_var, order_var)
+  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+}
+
 /// Generic filter expression.
 pub fn filter(
   builder: QueryBuilder,

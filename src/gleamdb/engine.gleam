@@ -225,6 +225,12 @@ fn solve_clause(
     types.ShortestPath(from, to, edge, path_var, cost_var) -> solve_shortest_path(db_state, from, to, edge, path_var, cost_var, ctx)
     types.PageRank(entity_var, edge, rank_var, d, iter) -> solve_pagerank(db_state, entity_var, edge, rank_var, d, iter, ctx)
     types.Virtual(pred, args, outputs) -> solve_virtual(db_state, pred, args, outputs, ctx)
+    types.Reachable(from, edge, node_var) -> solve_reachable(db_state, from, edge, node_var, ctx)
+    types.ConnectedComponents(edge, entity_var, component_var) -> solve_connected_components(db_state, edge, entity_var, component_var, ctx)
+    types.Neighbors(from, edge, depth, node_var) -> solve_neighbors(db_state, from, edge, depth, node_var, ctx)
+    types.CycleDetect(edge, cycle_var) -> solve_cycle_detect(db_state, edge, cycle_var, ctx)
+    types.BetweennessCentrality(edge, entity_var, score_var) -> solve_betweenness(db_state, edge, entity_var, score_var, ctx)
+    types.TopologicalSort(edge, entity_var, order_var) -> solve_topological_sort(db_state, edge, entity_var, order_var, ctx)
     _ -> [ctx]
   }
 }
@@ -403,6 +409,12 @@ fn solve_clause_with_derived(
     types.ShortestPath(from, to, edge, path_var, cost_var) -> solve_shortest_path(db_state, from, to, edge, path_var, cost_var, ctx)
     types.PageRank(entity_var, edge, rank_var, d, iter) -> solve_pagerank(db_state, entity_var, edge, rank_var, d, iter, ctx)
     types.Virtual(pred, args, outputs) -> solve_virtual(db_state, pred, args, outputs, ctx)
+    types.Reachable(from, edge, node_var) -> solve_reachable(db_state, from, edge, node_var, ctx)
+    types.ConnectedComponents(edge, entity_var, component_var) -> solve_connected_components(db_state, edge, entity_var, component_var, ctx)
+    types.Neighbors(from, edge, depth, node_var) -> solve_neighbors(db_state, from, edge, depth, node_var, ctx)
+    types.CycleDetect(edge, cycle_var) -> solve_cycle_detect(db_state, edge, cycle_var, ctx)
+    types.BetweennessCentrality(edge, entity_var, score_var) -> solve_betweenness(db_state, edge, entity_var, score_var, ctx)
+    types.TopologicalSort(edge, entity_var, order_var) -> solve_topological_sort(db_state, edge, entity_var, order_var, ctx)
     _ -> [ctx]
   }
 }
@@ -882,6 +894,147 @@ fn solve_pagerank(
       })
     }
     _ -> []
+  }
+}
+
+fn solve_reachable(
+  db_state: types.DbState,
+  from: types.Part,
+  edge: String,
+  node_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let from_eid = resolve_entity_id_from_part(from, ctx)
+  case from_eid {
+    Some(eid) -> {
+      let nodes = graph.reachable(db_state, eid, edge)
+      list.map(nodes, fn(n) {
+        dict.insert(ctx, node_var, fact.Ref(n))
+      })
+    }
+    None -> []
+  }
+}
+
+fn solve_connected_components(
+  db_state: types.DbState,
+  edge: String,
+  entity_var: String,
+  component_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let components = graph.connected_components(db_state, edge)
+  case dict.get(ctx, entity_var) {
+    Ok(fact.Ref(eid)) -> {
+      case dict.get(components, eid) {
+        Ok(cid) -> [dict.insert(ctx, component_var, fact.Int(cid))]
+        Error(_) -> []
+      }
+    }
+    Ok(fact.Int(eid_int)) -> {
+      let eid = fact.EntityId(eid_int)
+      case dict.get(components, eid) {
+        Ok(cid) -> [dict.insert(ctx, component_var, fact.Int(cid))]
+        Error(_) -> []
+      }
+    }
+    Error(_) -> {
+      // Unbound entity — generate all nodes with their component IDs
+      dict.fold(components, [], fn(acc, eid, cid) {
+        let new_ctx = dict.insert(ctx, entity_var, fact.Ref(eid))
+        let new_ctx = dict.insert(new_ctx, component_var, fact.Int(cid))
+        [new_ctx, ..acc]
+      })
+    }
+    _ -> []
+  }
+}
+
+fn solve_neighbors(
+  db_state: types.DbState,
+  from: types.Part,
+  edge: String,
+  depth: Int,
+  node_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let from_eid = resolve_entity_id_from_part(from, ctx)
+  case from_eid {
+    Some(eid) -> {
+      let nodes = graph.neighbors_khop(db_state, eid, edge, depth)
+      list.map(nodes, fn(n) {
+        dict.insert(ctx, node_var, fact.Ref(n))
+      })
+    }
+    None -> []
+  }
+}
+
+fn solve_cycle_detect(
+  db_state: types.DbState,
+  edge: String,
+  cycle_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let cycles = graph.cycle_detect(db_state, edge)
+  list.map(cycles, fn(cycle) {
+    let cycle_val = fact.List(list.map(cycle, fact.Ref))
+    dict.insert(ctx, cycle_var, cycle_val)
+  })
+}
+
+fn solve_betweenness(
+  db_state: types.DbState,
+  edge: String,
+  entity_var: String,
+  score_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  let scores = graph.betweenness_centrality(db_state, edge)
+  case dict.get(ctx, entity_var) {
+    Ok(fact.Ref(eid)) -> {
+      case dict.get(scores, eid) {
+        Ok(score) -> [dict.insert(ctx, score_var, fact.Float(score))]
+        Error(_) -> []
+      }
+    }
+    Ok(fact.Int(eid_int)) -> {
+      let eid = fact.EntityId(eid_int)
+      case dict.get(scores, eid) {
+        Ok(score) -> [dict.insert(ctx, score_var, fact.Float(score))]
+        Error(_) -> []
+      }
+    }
+    Error(_) -> {
+      // Unbound — generate all
+      dict.fold(scores, [], fn(acc, eid, score) {
+        let new_ctx = dict.insert(ctx, entity_var, fact.Ref(eid))
+        let new_ctx = dict.insert(new_ctx, score_var, fact.Float(score))
+        [new_ctx, ..acc]
+      })
+    }
+    _ -> []
+  }
+}
+
+fn solve_topological_sort(
+  db_state: types.DbState,
+  edge: String,
+  entity_var: String,
+  order_var: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  case graph.topological_sort(db_state, edge) {
+    Ok(ordered) -> {
+      list.index_map(ordered, fn(node, idx) {
+        let new_ctx = dict.insert(ctx, entity_var, fact.Ref(node))
+        dict.insert(new_ctx, order_var, fact.Int(idx))
+      })
+    }
+    Error(_cycle_nodes) -> {
+      // Graph has cycles — return empty (no valid ordering)
+      []
+    }
   }
 }
 

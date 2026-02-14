@@ -137,8 +137,6 @@ pub fn graph_query_test() {
   ])
   
   // 1. Shortest Path Query
-  // Find path from A to C
-  // Using q builder:
   let clauses = q.new()
     |> q.where(q.v("a"), "name", q.s("A"))
     |> q.where(q.v("c"), "name", q.s("C"))
@@ -157,6 +155,384 @@ pub fn graph_query_test() {
     |> q.to_clauses()
     
   let results = engine.run(state, clauses, [], None, None)
-  // Should have 4 results (A, B, C, D)
   should.equal(list.length(results), 4)
+  
+  // 3. Reachable Query — all nodes reachable from A
+  let clauses = q.new()
+    |> q.where(q.v("start"), "name", q.s("A"))
+    |> q.reachable(q.v("start"), "link", "reached")
+    |> q.to_clauses()
+    
+  let results = engine.run(state, clauses, [], None, None)
+  // A can reach B, C, D (plus itself) — at least 3 non-self
+  should.be_true(list.length(results) >= 3)
+  
+  // 4. Connected Components Query — all nodes labeled
+  let clauses = q.new()
+    |> q.connected_components("link", "entity", "component")
+    |> q.to_clauses()
+    
+  let results = engine.run(state, clauses, [], None, None)
+  should.equal(list.length(results), 4)
+  
+  // 5. Neighbors Query — 1-hop from B
+  let clauses = q.new()
+    |> q.where(q.v("origin"), "name", q.s("B"))
+    |> q.neighbors(q.v("origin"), "link", 1, "neighbor")
+    |> q.to_clauses()
+    
+  let results = engine.run(state, clauses, [], None, None)
+  // B's 1-hop neighbors: C, D
+  should.equal(list.length(results), 2)
+}
+
+pub fn reachable_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // A -> B -> C, A -> D (D is a dead end)
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: b, attribute: "edge", value: Ref(c), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: a, attribute: "edge", value: Ref(d), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let eavt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_eavt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, eavt: eavt)
+  
+  // From A, we should reach A, B, C, D
+  let reached = graph.reachable(db_state, a, "edge")
+  should.equal(list.length(reached), 4)
+  
+  // From C, we reach only C (dead end)
+  let reached_c = graph.reachable(db_state, c, "edge")
+  should.equal(list.length(reached_c), 1)
+}
+
+pub fn connected_components_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // Component 1: A -> B
+  // Component 2: C -> D  (disconnected from A,B)
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: c, attribute: "edge", value: Ref(d), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let aevt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_aevt(idx, datom, fact.All)
+  })
+  let eavt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_eavt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, eavt: eavt, aevt: aevt)
+  
+  let components = graph.connected_components(db_state, "edge")
+  
+  // Should have 4 nodes labeled
+  should.equal(dict.size(components), 4)
+  
+  // A and B should be in the same component
+  let assert Ok(comp_a) = dict.get(components, a)
+  let assert Ok(comp_b) = dict.get(components, b)
+  should.equal(comp_a, comp_b)
+  
+  // C and D should be in the same component
+  let assert Ok(comp_c) = dict.get(components, c)
+  let assert Ok(comp_d) = dict.get(components, d)
+  should.equal(comp_c, comp_d)
+  
+  // But A's component != C's component
+  should.be_true(comp_a != comp_c)
+}
+
+pub fn neighbors_khop_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // A -> B -> C -> D
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: b, attribute: "edge", value: Ref(c), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: c, attribute: "edge", value: Ref(d), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let eavt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_eavt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, eavt: eavt)
+  
+  // 1-hop from A: just B
+  let n1 = graph.neighbors_khop(db_state, a, "edge", 1)
+  should.equal(list.length(n1), 1)
+  
+  // 2-hop from A: B and C
+  let n2 = graph.neighbors_khop(db_state, a, "edge", 2)
+  should.equal(list.length(n2), 2)
+  
+  // 3-hop from A: B, C, D
+  let n3 = graph.neighbors_khop(db_state, a, "edge", 3)
+  should.equal(list.length(n3), 3)
+  
+  // 0-hop from A: nothing (exclude self)
+  let n0 = graph.neighbors_khop(db_state, a, "edge", 0)
+  should.equal(list.length(n0), 0)
+}
+
+pub fn cycle_detect_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // A -> B -> C -> A (cycle), D -> E (no cycle)
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  let e = EntityId(5)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: b, attribute: "edge", value: Ref(c), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: c, attribute: "edge", value: Ref(a), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: d, attribute: "edge", value: Ref(e), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let aevt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_aevt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, aevt: aevt)
+  
+  let cycles = graph.cycle_detect(db_state, "edge")
+  // Should find at least 1 cycle
+  should.be_true(list.length(cycles) >= 1)
+  
+  // Each cycle should contain A (cycles through A->B->C->A)
+  let assert [first_cycle, ..] = cycles
+  should.be_true(list.length(first_cycle) >= 2)
+}
+
+pub fn betweenness_centrality_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // Star topology: A -> B, C -> B, D -> B, B -> E
+  // B is the gatekeeper — should have highest betweenness
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  let e = EntityId(5)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: c, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: d, attribute: "edge", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: b, attribute: "edge", value: Ref(e), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let aevt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_aevt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, aevt: aevt)
+  
+  let scores = graph.betweenness_centrality(db_state, "edge")
+  
+  // B should have the highest betweenness centrality
+  let score_b = dict.get(scores, b) |> result.unwrap(0.0)
+  let score_a = dict.get(scores, a) |> result.unwrap(0.0)
+  let score_e = dict.get(scores, e) |> result.unwrap(0.0)
+  
+  should.be_true(score_b >. score_a)
+  should.be_true(score_b >. score_e)
+}
+
+pub fn topological_sort_test() {
+  let db_state = types.DbState(
+    adapter: storage.ephemeral(),
+    eavt: dict.new(),
+    aevt: dict.new(),
+    avet: dict.new(),
+    latest_tx: 0,
+    subscribers: [],
+    schema: dict.new(),
+    functions: dict.new(),
+    composites: [],
+    reactive_actor: process.new_subject(),
+    followers: [],
+    is_distributed: False,
+    ets_name: None,
+    raft_state: raft.new([]),
+    vec_index: vec_index.new(),
+    predicates: dict.new(),
+    stored_rules: [],
+    virtual_predicates: dict.new(),
+    config: types.Config(parallel_threshold: 500, batch_size: 100),
+  )
+  
+  // DAG: A -> B -> D, A -> C -> D
+  let a = EntityId(1)
+  let b = EntityId(2)
+  let c = EntityId(3)
+  let d = EntityId(4)
+  
+  let facts = [
+    fact.Datom(entity: a, attribute: "dep", value: Ref(b), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: a, attribute: "dep", value: Ref(c), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: b, attribute: "dep", value: Ref(d), tx: 1, valid_time: 0, operation: fact.Assert),
+    fact.Datom(entity: c, attribute: "dep", value: Ref(d), tx: 1, valid_time: 0, operation: fact.Assert),
+  ]
+  
+  let aevt = list.fold(facts, dict.new(), fn(idx, datom) {
+    index.insert_aevt(idx, datom, fact.All)
+  })
+  let db_state = types.DbState(..db_state, aevt: aevt)
+  
+  // Should succeed (DAG)
+  let assert Ok(sorted) = graph.topological_sort(db_state, "dep")
+  should.equal(list.length(sorted), 4)
+  
+  // A must come before B, C; B and C must come before D
+  let assert Ok(pos_a) = list_index(sorted, a, 0)
+  let assert Ok(pos_d) = list_index(sorted, d, 0)
+  should.be_true(pos_a < pos_d)
+  
+  // Now test with a cycle: add D -> A
+  let cycle_facts = [
+    fact.Datom(entity: d, attribute: "dep", value: Ref(a), tx: 2, valid_time: 0, operation: fact.Assert),
+    ..facts
+  ]
+  let aevt2 = list.fold(cycle_facts, dict.new(), fn(idx, datom) {
+    index.insert_aevt(idx, datom, fact.All)
+  })
+  let db_state2 = types.DbState(..db_state, aevt: aevt2)
+  
+  // Should fail (cycle)
+  let assert Error(cycle_nodes) = graph.topological_sort(db_state2, "dep")
+  should.be_true(list.length(cycle_nodes) > 0)
+}
+
+// Helper: find index of element in list
+fn list_index(lst: List(fact.EntityId), target: fact.EntityId, idx: Int) -> Result(Int, Nil) {
+  case lst {
+    [] -> Error(Nil)
+    [head, ..tail] -> {
+      case head == target {
+        True -> Ok(idx)
+        False -> list_index(tail, target, idx + 1)
+      }
+    }
+  }
 }

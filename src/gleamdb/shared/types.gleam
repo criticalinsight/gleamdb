@@ -83,6 +83,36 @@ pub type BodyClause {
     args: List(Part),
     outputs: List(String),
   )
+  Reachable(
+    from: Part,
+    edge: String,
+    node_var: String,
+  )
+  ConnectedComponents(
+    edge: String,
+    entity_var: String,
+    component_var: String,
+  )
+  Neighbors(
+    from: Part,
+    edge: String,
+    depth: Int,
+    node_var: String,
+  )
+  CycleDetect(
+    edge: String,
+    cycle_var: String,
+  )
+  BetweennessCentrality(
+    edge: String,
+    entity_var: String,
+    score_var: String,
+  )
+  TopologicalSort(
+    edge: String,
+    entity_var: String,
+    order_var: String,
+  )
 }
 
 pub type Rule {
