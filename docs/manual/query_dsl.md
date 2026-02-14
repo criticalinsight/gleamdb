@@ -58,20 +58,27 @@ let query = q.new()
   |> q.virtual("external_api", [q.v("path")], ["status"])
 ```
 
-### 6. Aggregates
-GleamDB supports nested aggregate clauses. These take a target variable, a filter sub-query, and an output variable.
-- `q.count(into, target, filter)`
-- `q.sum(into, target, filter)`
-- `q.avg(into, target, filter)`
-- `q.min(into, target, filter)`
-- `q.max(into, target, filter)`
+### 6. Aggregates (Phase 31)
+GleamDB supports pure, distributed aggregation via the `Aggregate` clause.
+
+- `target_var`: Name of the variable to bind the result to.
+- `function`: The aggregation function (`Sum`, `Count`, `Min`, `Max`, `Avg`, `Median`).
+- `source_var`: The variable to aggregate over.
+- `filters`: A list of filter clauses (currently not used in the simplified API, pass `[]`).
 
 ```gleam
-let query = q.select(["count"])
-  |> q.count("count", "e", [
-      q.where(q.v("e"), "user/status", q.s("active"))
-  ])
-  |> q.to_clauses()
+import gleamdb/shared/types.{Aggregate, Sum, Count}
+
+let query = [
+  // 1. Match entities having "age"
+  gleamdb.p(#(types.Var("e"), "age", types.Var("val"))),
+  
+  // 2. Sum "val" into "total_age"
+  Aggregate("total_age", Sum, "val", []),
+
+  // 3. Count "e" into "count"
+  Aggregate("count", Count, "e", [])
+]
 ```
 
 ### Helpers
