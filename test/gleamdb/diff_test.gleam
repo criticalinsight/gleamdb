@@ -1,9 +1,7 @@
 import gleeunit/should
-import gleam/option.{None, Some}
-import gleam/dict
 import gleam/list
 import gleamdb
-import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+import gleamdb/fact.{Str, Int}
 
 pub fn diff_test() {
   let db_actor = gleamdb.new()

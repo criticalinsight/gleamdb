@@ -47,23 +47,26 @@ Atomic Transaction Functions and Composite Constraints for total integrity.
 distributed Aggregates (`Sum`, `Count`, `Avg`, `Max`, `Min`, `Median`) and Parallel Query Execution.
 
 ### [x] Graph Algorithm Suite (Phase 32)
-9 native graph predicates: `ShortestPath`, `PageRank`, `Reachable`, `ConnectedComponents`, `Neighbors`, `CycleDetect`, `BetweennessCentrality`, `TopologicalSort`, `StronglyConnectedComponents`. Pure immutable algorithms (~700 lines). Composable with Datalog joins.
+9 native graph predicates: `ShortestPath`, `PageRank`, etc.
+
+### [x] HNSW Vector Indexing (Phase 44)
+Hierarchical layers for true $O(\log N)$ scaling on 1M+ vector datasets. Replaced flat NSW with robust HNSW.
+
+### [x] Advanced Join Optimization (ART) (Phase 45)
+Adaptive Radix Tree integration for multi-way join optimization.
 
 ---
 
-## Future Directions (Phase 24+)
+## Future Directions (v2.1.0+)
 
 | Item | Description | Priority |
 | :--- | :--- | :--- |
-| **Navigator (Ph 28)** | Cost-based query planner (Join Ordering) | **High** |
-| **HNSW Layering** | Add hierarchical layers to NSW for 100K+ vector datasets | Medium |
-| **Bitemporality** | Separate Valid Time from System Time (XTDB style) | Medium |
 | **Persistent Pull Cache** | LRU cache for hot pull patterns | Low |
-| **WAL Streaming** | Real-time transaction log streaming | Low |
+| **WAL Streaming** | Real-time transaction log streaming for external downstream consumers | Low |
 
 ---
 
-## Current Status: Phase 32 (Graph Algorithm Suite) — v2.0.0
-All original roadmap items, Sovereign Intelligence, and Graph Algorithm Suite are complete. The system is correct, durable, speculative, parallel, horizontally scalable, and graph-intelligent.
+## Current Status: Phase 45 (HNSW & ART) — v2.1.0
+All original roadmap items, Sovereign Intelligence, Graph Algorithm Suite, HNSW, and ART are complete. The system is correct, durable, speculative, parallel, horizontally scalable, and graph-intelligent.
 
-🧙🏾‍♂️: "A system that is correct, durable, sovereign, AND graph-intelligent is no longer a prototype. It is a foundation for intelligence."
+🧙🏾‍♂️: "A system that is correct, durable, sovereign, graph-intelligent, AND hierarchically scalable is no longer a foundation. It is a Citadel."

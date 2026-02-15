@@ -17,7 +17,9 @@ import gleamdb/index/ets as ets_index
 import gleamdb/rule_serde
 import gleamdb/process_extra
 import gleamdb/raft
+import gleamdb/vector
 import gleamdb/vec_index
+import gleamdb/index/art
 
 pub type Message {
   Transact(List(fact.Fact), Option(Int), process.Subject(Result(types.DbState, String)))
@@ -34,6 +36,8 @@ pub type Message {
   RaftMsg(raft.RaftMessage)
   Compact(process.Subject(Nil))
   SetConfig(types.Config, process.Subject(Nil))
+  Sync(process.Subject(Nil))
+  Boot(Option(String), storage.StorageAdapter, process.Subject(Nil))
 }
 
 pub type Db =
@@ -65,19 +69,19 @@ pub fn start_distributed(
       let pid = process_extra.subject_to_pid(subject)
       let _ = global.register("gleamdb_" <> name, pid)
       // Try to register as the primary leader if not exists
-      case global.register("gleamdb_leader", pid) {
-        Ok(_) -> Nil
-        Error(_) -> {
-          // If we are not the leader, tell the leader about us
-          case global.whereis("gleamdb_leader") {
-             Ok(leader_pid) -> {
-               let leader_subject = process_extra.pid_to_subject(leader_pid)
-               process.send(leader_subject, Join(pid))
-             }
-             Error(_) -> Nil
-          }
-        }
-      }
+      // case global.register(leader_name, pid) {
+      //   Ok(_) -> Nil
+      //   Error(_) -> {
+      //     // If we are not the leader, tell the leader about us
+      //     case global.whereis(leader_name) {
+      //        Ok(leader_pid) -> {
+      //          let leader_subject = process_extra.pid_to_subject(leader_pid)
+      //          process.send(leader_subject, Join(pid))
+      //        }
+      //        Error(_) -> Nil
+      //     }
+      //   }
+      // }
       Ok(subject)
     }
     Error(err) -> Error(err)
@@ -91,15 +95,13 @@ pub fn start_with_timeout(
   do_start_named(store, False, None)
 }
 
-fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name: Option(String)) -> Result(process.Subject(Message), actor.StartError) {
-  store.init()
+fn do_start_named(
+  store: storage.StorageAdapter,
+  is_distributed: Bool,
+  ets_name: Option(String),
+) -> Result(process.Subject(Message), actor.StartError) {
   let assert Ok(reactive_subject) = reactive.start_link()
 
-  case ets_name {
-    Some(name) -> ets_index.init_tables(name)
-    None -> Nil
-  }
-  
   let base_state =
     types.DbState(
       adapter: store,
@@ -117,22 +119,42 @@ fn do_start_named(store: storage.StorageAdapter, is_distributed: Bool, ets_name:
       ets_name: ets_name,
       raft_state: raft.new([]),
       vec_index: vec_index.new(),
+      art_index: art.new(),
       predicates: dict.new(),
       stored_rules: [],
       virtual_predicates: dict.new(),
       config: types.Config(parallel_threshold: 500, batch_size: 100),
     )
 
-  let initial_state = recover_state(base_state)
+  let res =
+    actor.new(base_state)
+    |> actor.on_message(handle_message)
+    |> actor.start()
 
-  actor.new(initial_state)
-  |> actor.on_message(handle_message)
-  |> actor.start()
-  |> result.map(fn(started) { started.data })
+  case res {
+    Ok(started) -> {
+      let subj = started.data
+      let reply = process.new_subject()
+      process.send(subj, Boot(ets_name, store, reply))
+      process.receive(reply, 600_000)
+      Ok(subj)
+    }
+    Error(e) -> Error(e)
+  }
 }
 
 fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbState, Message) {
   case msg {
+    Boot(ets_name, store, reply) -> {
+      case ets_name {
+        Some(name) -> ets_index.init_tables(name)
+        None -> Nil
+      }
+      store.init()
+      let new_state = recover_state(state)
+      process.send(reply, Nil)
+      actor.continue(new_state)
+    }
     Transact(facts, vt, reply_to) -> {
       case is_leader(state) {
         True -> do_handle_transact(state, facts, vt, fact.Assert, reply_to)
@@ -221,7 +243,7 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       let results = engine.run(state, clauses, [], None, None)
       
       // 2. Identify if any distinct entities have the same value set
-      let seen = list.fold_until(results, Ok(dict.new()), fn(acc_res, binding) {
+      let seen = list.fold_until(results.rows, Ok(dict.new()), fn(acc_res, binding) {
         let assert Ok(acc) = acc_res
         let e = dict.get(binding, "e") |> result.unwrap(fact.Int(0))
         let vals = list.map(attrs, fn(a) { dict.get(binding, a) |> result.unwrap(fact.Int(0)) })
@@ -234,10 +256,22 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       
       case seen {
         Ok(_) -> {
-          let new_composites = [attrs, ..state.composites]
-          let new_state = types.DbState(..state, composites: new_composites)
-          process.send(reply_to, Ok(Nil))
-          actor.continue(new_state)
+          // 3. Persist as meta-fact for durability (Dogfood Learning)
+          let serialized_attrs = string.join(attrs, ",")
+          let meta_eid = fact.deterministic_uid("_meta/composite/" <> serialized_attrs)
+          let meta_fact = #(meta_eid, "_meta/composite", fact.Str(serialized_attrs))
+          
+          case do_transact(state, [meta_fact], None, fact.Assert) {
+             Ok(#(new_state, _datoms)) -> {
+               // The composite list is already updated by apply_datom via do_transact
+               process.send(reply_to, Ok(Nil))
+               actor.continue(new_state)
+             }
+             Error(e) -> {
+               process.send(reply_to, Error(e))
+               actor.continue(state)
+             }
+          }
         }
         Error(e) -> {
           process.send(reply_to, Error(e))
@@ -308,6 +342,13 @@ fn handle_message(state: types.DbState, msg: Message) -> actor.Next(types.DbStat
       print_config_update(config)
       process.send(reply_to, Nil)
       actor.continue(types.DbState(..state, config: config))
+    }
+    Sync(reply_to) -> {
+      // Barrier: Send empty message to self and wait? No, the actor is sequential.
+      // Reaching this message means all previous Transact/Retract messages in the mailbox
+      // have been processed.
+      process.send(reply_to, Nil)
+      actor.continue(state)
     }
   }
 }
@@ -469,22 +510,29 @@ fn filter_active(datoms: List(fact.Datom)) -> List(fact.Datom) {
       Ok(#(tx, op)) -> tx == d.tx && op == fact.Assert
       _ -> False
     }
-  }) |> list.unique()
+  })
 }
 
 fn recover_state(state: types.DbState) -> types.DbState {
   case state.adapter.recover() {
     Ok(datoms) -> {
-      // Re-apply all datoms to reconstruct indices
-      let #(final_state, max_tx) = list.fold(datoms, #(state, 0), fn(acc, d) {
+      // 1. Rebuild basic indices (history-preserving) WITHOUT vector indexing
+      let #(inter_state, max_tx) = list.fold(datoms, #(state, 0), fn(acc, d) {
         let #(curr_state, curr_max) = acc
-        let next_state = apply_datom(curr_state, d)
+        let next_state = apply_datom_no_vector(curr_state, d)
         let next_max = case d.tx > curr_max {
           True -> d.tx
           False -> curr_max
         }
         #(next_state, next_max)
       })
+      
+      // 2. Rebuild Vector Index from ACTIVE datoms ONLY
+      let active_datoms = filter_active(datoms)
+      let final_state = list.fold(active_datoms, inter_state, fn(acc, d) {
+        apply_datom_vector_only(acc, d)
+      })
+      
       types.DbState(..final_state, latest_tx: max_tx)
     }
     Error(_) -> state
@@ -639,7 +687,7 @@ fn check_composite_uniqueness(state: types.DbState, datom: fact.Datom) -> Result
         })
         
         let results = engine.run(state, clauses, [], None, None)
-        let has_violation = list.any(results, fn(binding) {
+        let has_violation = list.any(results.rows, fn(binding) {
           case dict.get(binding, "e") {
             Ok(fact.Ref(eid)) -> eid != datom.entity
             Ok(fact.Int(eid)) -> fact.EntityId(eid) != datom.entity
@@ -681,6 +729,32 @@ fn retract_recursive_collected(state: types.DbState, eid: fact.EntityId, tx_id: 
 }
 
 fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
+  let datom = case datom.value {
+    fact.Vec(v) -> fact.Datom(..datom, value: fact.Vec(vector.normalize(v)))
+    _ -> datom
+  }
+  state
+  |> apply_datom_no_vector(datom)
+  let state = apply_datom_art(state, datom)
+  state
+  |> apply_datom_no_vector(datom)
+  |> apply_datom_vector_only(datom)
+}
+
+fn apply_datom_art(state: types.DbState, datom: fact.Datom) -> types.DbState {
+  case datom.value {
+    fact.Str(_) -> {
+      let new_art = case datom.operation {
+        fact.Assert -> art.insert(state.art_index, datom.value, datom.entity)
+        fact.Retract -> art.delete(state.art_index, datom.value, datom.entity)
+      }
+      types.DbState(..state, art_index: new_art)
+    }
+    _ -> state
+  }
+}
+
+fn apply_datom_no_vector(state: types.DbState, datom: fact.Datom) -> types.DbState {
   let config = dict.get(state.schema, datom.attribute) |> result.unwrap(fact.AttributeConfig(unique: False, component: False, retention: fact.All, cardinality: fact.Many, check: None))
   let retention = config.retention
   
@@ -697,10 +771,22 @@ fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
         _, _ -> state
       }
     }
+    "_meta/composite" -> {
+      case datom.value, datom.operation {
+        fact.Str(attrs_str), fact.Assert -> {
+          let attrs = string.split(attrs_str, ",")
+          case list.contains(state.composites, attrs) {
+            True -> state
+            False -> types.DbState(..state, composites: [attrs, ..state.composites])
+          }
+        }
+        _, _ -> state
+      }
+    }
     _ -> state
   }
 
-  let base_state = case state.ets_name {
+  case state.ets_name {
     Some(name) -> {
       case retention {
         fact.LatestOnly -> {
@@ -716,8 +802,6 @@ fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
         fact.Assert -> ets_index.insert_avet(name <> "_avet", #(datom.attribute, datom.value), datom.entity)
         fact.Retract -> ets_index.delete(name <> "_avet", #(datom.attribute, datom.value))
       }
-      // When utilizing ETS, we can keep the in-memory Dict indices empty or small
-      // Phase 42: Disk-First Strategy - rely on ETS/Mnesia, avoid Dict duplication
       state
     }
     None -> {
@@ -741,21 +825,25 @@ fn apply_datom(state: types.DbState, datom: fact.Datom) -> types.DbState {
       }
     }
   }
+}
 
+fn apply_datom_vector_only(state: types.DbState, datom: fact.Datom) -> types.DbState {
   case datom.operation {
     fact.Assert -> {
       let new_vec_idx = case datom.value {
-        fact.Vec(v) -> vec_index.insert(base_state.vec_index, datom.entity, v)
-        _ -> base_state.vec_index
+        fact.Vec(v) -> {
+          vec_index.insert(state.vec_index, datom.entity, v)
+        }
+        _ -> state.vec_index
       }
-      types.DbState(..base_state, vec_index: new_vec_idx)
+      types.DbState(..state, vec_index: new_vec_idx)
     }
     fact.Retract -> {
       let new_vec_idx = case datom.value {
-        fact.Vec(_) -> vec_index.delete(base_state.vec_index, datom.entity)
-        _ -> base_state.vec_index
+        fact.Vec(_) -> vec_index.delete(state.vec_index, datom.entity)
+        _ -> state.vec_index
       }
-      types.DbState(..base_state, vec_index: new_vec_idx)
+      types.DbState(..state, vec_index: new_vec_idx)
     }
   }
 }

@@ -14,7 +14,7 @@ The fabric uses a **Democratic Partitioning** model. The keyspace is divided int
 
 ### Starting a Distributed Leader
 
-To enable the Sovereign Fabric (consensus-based transaction forwarding), use `start_distributed`:
+To enable the Sovereign Fabric (consensus-based transaction forwarding), use `start_distributed`. In v2.0.0, every cluster uses a unique namespace for its leader (`gleamdb_leader_NAME`), allowing multiple isolated sharded clusters to run on the same node without conflict.
 
 ```gleam
 import gleamdb

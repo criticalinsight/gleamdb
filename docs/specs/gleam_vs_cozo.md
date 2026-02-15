@@ -16,7 +16,7 @@
 
 #### Cons
 - **Performance Ceiling**: The BEAM is not optimized for raw number crunching or heavy loop unrolling like Rust/C++. Complex joins on millions of rows will be slower.
-- **Maturity**: This is an MVP. It lacks advanced query planning (heuristic/cost-based), transactions (beyond single-writer), and efficient on-disk indices (LSM-trees are hard to implement purely in BEAM efficiently).
+- **Maturity**: Evolving rapidly. Now features **Navigator** (cost-based planner), **Chronos** (bitemporal), **Graph Suite** (9 predicates), and **HNSW** vector search ($O(\log N)$).
 
 ### 2. CozoDB (Rust / NIFs)
 **Philosophy**: Performance, features, and polyglot flexibility.

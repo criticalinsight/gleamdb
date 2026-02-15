@@ -2,6 +2,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
 import gleam/result
+import gleam/int
 import gleam/list
 import gleamdb/transactor
 import gleamdb/engine
@@ -101,9 +102,17 @@ pub fn retract_at(db: Db, facts: List(Fact), valid_time: Int) -> Result(DbState,
   }
 }
 
-pub fn with_facts(state: DbState, facts: List(Fact)) -> Result(DbState, String) {
+pub fn with_facts(state: DbState, facts: List(Fact)) -> Result(types.SpeculativeResult, String) {
   transactor.compute_next_state(state, facts, None, fact.Assert)
-  |> result.map(fn(res) { res.0 })
+  |> result.map(fn(res) { types.SpeculativeResult(state: res.0, datoms: res.1) })
+}
+
+/// Provides a human-readable explanation of a speculative result or failure.
+pub fn explain_speculation(res: Result(types.SpeculativeResult, String)) -> String {
+  case res {
+    Ok(s) -> "Speculation successful: " <> int.to_string(list.length(s.datoms)) <> " datoms predicted."
+    Error(e) -> "Speculation failed: " <> e
+  }
 }
 
 pub fn get(db: Db, eid: fact.Eid, attr: String) -> List(fact.Value) {
@@ -182,6 +191,18 @@ pub fn query(db: Db, q_clauses: List(BodyClause)) -> QueryResult {
   engine.run(state, q_clauses, [], None, None)
 }
 
+pub fn query_state(state: DbState, q_clauses: List(BodyClause)) -> QueryResult {
+  engine.run(state, q_clauses, [], None, None)
+}
+
+pub fn query_state_with_rules(
+  state: DbState,
+  q_clauses: List(BodyClause),
+  rules: List(types.Rule),
+) -> QueryResult {
+  engine.run(state, q_clauses, rules, None, None)
+}
+
 pub fn query_with_rules(db: Db, q_clauses: List(BodyClause), rules: List(types.Rule)) -> QueryResult {
   let state = transactor.get_state(db)
   engine.run(state, q_clauses, rules, None, None)
@@ -258,6 +279,13 @@ pub fn subscribe(
 
 pub fn get_state(db: Db) -> DbState {
   transactor.get_state(db)
+}
+
+pub fn sync(db: Db) -> Nil {
+  let reply = process.new_subject()
+  process.send(db, transactor.Sync(reply))
+  let _ = process.receive(reply, 5000)
+  Nil
 }
 
 pub fn is_leader(db: Db) -> Bool {

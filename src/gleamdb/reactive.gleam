@@ -42,7 +42,7 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
                   let current_result = engine.run(db_state, aq.query, [], None, None)
                   let #(added, removed) = diff(aq.last_result, current_result)
                   
-                  case added == [] && removed == [] {
+                  case added.rows == [] && removed.rows == [] {
                     True -> Ok(aq)
                     False -> {
                       process.send(aq.subscriber, Delta(added, removed))
@@ -66,11 +66,14 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
 import gleam/set
 
 fn diff(old: QueryResult, new: QueryResult) -> #(QueryResult, QueryResult) {
-  let old_set = set.from_list(old)
-  let new_set = set.from_list(new)
+  let old_set = set.from_list(old.rows)
+  let new_set = set.from_list(new.rows)
   
-  let added = set.difference(new_set, old_set) |> set.to_list()
-  let removed = set.difference(old_set, new_set) |> set.to_list()
+  let added_rows = set.difference(new_set, old_set) |> set.to_list()
+  let removed_rows = set.difference(old_set, new_set) |> set.to_list()
   
-  #(added, removed)
+  #(
+    types.QueryResult(rows: added_rows, metadata: new.metadata),
+    types.QueryResult(rows: removed_rows, metadata: new.metadata),
+  )
 }

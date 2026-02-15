@@ -1,15 +1,15 @@
 import gleeunit/should
-import gleam/option.{None, Some}
+import gleam/option.{None}
 import gleam/dict
 import gleam/list
-import gleamdb
-import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+import gleamdb/fact.{Str, Int}
 import gleamdb/engine
 import gleamdb/shared/types
 import gleamdb/storage
 import gleamdb/q
 import gleamdb/raft
 import gleamdb/vec_index
+import gleamdb/index/art
 import gleam/erlang/process
 
 pub fn virtual_predicate_test() {
@@ -40,6 +40,7 @@ pub fn virtual_predicate_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.from_list([#("users_csv", users_csv)]),
@@ -55,8 +56,8 @@ pub fn virtual_predicate_test() {
 
   let results = engine.run(db_state, clauses, [], None, None)
   
-  should.equal(list.length(results), 1)
-  let assert [row] = results
+  should.equal(list.length(results.rows), 1)
+  let assert [row] = results.rows
   should.equal(dict.get(row, "name"), Ok(Str("Alice")))
   should.equal(dict.get(row, "age"), Ok(Int(30)))
 }

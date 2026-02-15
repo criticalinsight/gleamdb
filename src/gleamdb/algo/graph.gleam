@@ -3,7 +3,6 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import gleam/int
-import gleam/float
 import gleam/result
 import gleamdb/fact.{type EntityId, Ref}
 import gleamdb/index

@@ -2,8 +2,14 @@ import gleam/list
 import gleam/float
 
 pub fn dot_product(v1: List(Float), v2: List(Float)) -> Float {
-  list.zip(v1, v2)
-  |> list.fold(0.0, fn(acc, pair) { acc +. { pair.0 *. pair.1 } })
+  do_dot_product(v1, v2, 0.0)
+}
+
+fn do_dot_product(v1: List(Float), v2: List(Float), acc: Float) -> Float {
+  case v1, v2 {
+    [x, ..xs], [y, ..ys] -> do_dot_product(xs, ys, acc +. { x *. y })
+    _, _ -> acc
+  }
 }
 
 pub fn magnitude(v: List(Float)) -> Float {

@@ -37,6 +37,7 @@ For similarity queries, GleamDB maintains a **Navigable Small-World (NSW) graph*
 
 - **Auto-Indexing**: Vec values are automatically added to the NSW graph on assertion and removed on retraction.
 - **Beam Search**: Greedy search with beam width 3 and configurable neighbor count (M=16).
+- **Unit-Vector Optimization**: Normalizing vectors to unit length at ingestion allows the search engine to use pure **Dot Product** for scoring, significantly reducing CPU cycles.
 - **Graph-Accelerated**: `solve_similarity` uses the NSW graph for unbound variables, falling back to AVET scan if the index is empty.
 
 ```gleam
@@ -99,6 +100,12 @@ gleamdb.set_schema(db, "sensor/value", config)
 ```
 
 Attributes with `LatestOnly` will prune their history during every transaction, ensuring O(1) memory for ephemeral streams while preserving permanent facts elsewhere.
+
+### Parallel Recovery Velocity
+When dealing with millions of historical datoms, serial recovery is a bottleneck. GleamDB's sharding implementation uses **Parallel Initialization** to saturate the CPU during boot.
+
+- **Threshold**: Systems with >100k historical records should increase `process.receive` timeouts to 600s during startup.
+- **Pattern**: Shards recover independently, then signal the leader of readiness.
 
 ### High-Frequency Tickers (The Gswarm Pattern)
 In production scenarios like Gswarm (1000+ ticks/sec), combining `LatestOnly` with Mnesia's `persist_batch` is critical. This decouples the "current state" (held in lock-free ETS) from the "durability layer," allowing the system to maintain sub-millisecond responsiveness even under extreme write pressure.

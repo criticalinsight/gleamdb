@@ -40,7 +40,7 @@ pub fn temporal_pagination_test() {
       |> q.to_clauses
     )
     
-  let values = list.map(result, fn(row) {
+  let values = list.map(result.rows, fn(row) {
     let assert Ok(fact.Int(v)) = dict.get(row, "val")
     v
   })
@@ -49,7 +49,7 @@ pub fn temporal_pagination_test() {
   // We expect *some* values. Since startup might use TXs, 
   // let's just check that we got a subset, not all 100.
   
-  should.be_true(list.length(values) > 0)
+  should.be_true(values != [])
   should.be_true(list.length(values) <= 12) // 50..60 is 11 inclusive, allowed some buffer
 }
 
@@ -74,7 +74,7 @@ pub fn limit_offset_order_test() {
       |> q.to_clauses
     )
     
-  let values = list.map(result, fn(row) {
+  let values = list.map(result.rows, fn(row) {
     let assert Ok(fact.Int(v)) = dict.get(row, "x")
     v
   })
@@ -92,7 +92,7 @@ pub fn limit_offset_order_test() {
       |> q.to_clauses
     )
 
-  let values_offset = list.map(result_offset, fn(row) {
+  let values_offset = list.map(result_offset.rows, fn(row) {
     let assert Ok(fact.Int(v)) = dict.get(row, "x")
     v
   })
@@ -124,7 +124,7 @@ pub fn aggregate_test() {
       |> q.to_clauses
     )
 
-  let assert Ok(row) = list.first(result)
+  let assert Ok(row) = list.first(result.rows)
   let assert Ok(fact.Float(avg)) = dict.get(row, "avg_val")
   
   // Avg(10, 20, 30, 40, 50) = 30.0

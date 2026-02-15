@@ -27,7 +27,7 @@ pub fn sharded_idempotency_test() {
   ]
   let results = sharded.query(db, q)
   
-  list.length(results) |> should.equal(1)
+  list.length(results.rows) |> should.equal(1)
   
   let _ = sharded.stop(db)
 }
@@ -49,7 +49,7 @@ pub fn sharded_scaling_test() {
   
   // Verify unified query
   let results = sharded.query(db, [gleamdb.p(#(types.Var("e"), "val", types.Var("v")))])
-  list.length(results) |> should.equal(4)
+  list.length(results.rows) |> should.equal(4)
   
   let _ = sharded.stop(db)
 }

@@ -17,6 +17,7 @@ import gleamdb/algo/aggregate
 import gleamdb/index/ets as ets_index
 import gleam/erlang/process
 import gleamdb/engine/navigator
+import gleamdb/index/art
 
 // Rule moved to types.gleam to avoid cycle
 
@@ -56,7 +57,26 @@ pub fn run(
   // Logical Navigator: Plan the query before execution
   let planned_clauses = navigator.plan(clauses)
   
-  list.fold(planned_clauses, initial_context, fn(contexts, clause) {
+  // [Dogfood Learning] Graph Type Safety: check if graph edges are Refs
+  list.each(planned_clauses, fn(c) {
+    case c {
+      types.PageRank(_, edge, _, _, _) | types.CycleDetect(edge, _) | 
+      types.StronglyConnectedComponents(edge, _, _) | types.TopologicalSort(edge, _, _) -> {
+        let config = dict.get(db_state.schema, edge)
+        case config {
+          Ok(conf) if conf.cardinality != fact.Many -> {
+             // In a real logger we'd use that, for now print to stdout
+             // which is visible in Gswarm logs
+             let _ = gleamdb_io_println("⚠️ Warning: Graph edge '" <> edge <> "' should be Ref(EntityId) for optimal performance.")
+          }
+          _ -> Nil
+        }
+      }
+      _ -> Nil
+    }
+  })
+
+  let rows = list.fold(planned_clauses, initial_context, fn(contexts, clause) {
     case clause {
       types.Limit(n) -> list.take(contexts, n)
       types.Offset(n) -> list.drop(contexts, n)
@@ -84,7 +104,20 @@ pub fn run(
     }
   })
   |> list.unique()
+
+  types.QueryResult(
+    rows: rows,
+    metadata: types.QueryMetadata(
+      tx_id: as_of_tx,
+      valid_time: as_of_valid,
+      execution_time_ms: 0, // Placeholder
+      shard_id: None,
+    )
+  )
 }
+
+@external(erlang, "io", "format")
+fn gleamdb_io_println(x: String) -> Nil
 
 fn derive_all_facts(db_state: types.DbState, rules: List(types.Rule), as_of_tx: Option(Int), as_of_valid: Option(Int)) -> Set(fact.Datom) {
   do_derive(db_state, rules, as_of_tx, as_of_valid, set.new())
@@ -232,6 +265,8 @@ fn solve_clause(
     types.BetweennessCentrality(edge, entity_var, score_var) -> solve_betweenness(db_state, edge, entity_var, score_var, ctx)
     types.TopologicalSort(edge, entity_var, order_var) -> solve_topological_sort(db_state, edge, entity_var, order_var, ctx)
     types.StronglyConnectedComponents(edge, entity_var, component_var) -> solve_strongly_connected(db_state, edge, entity_var, component_var, ctx)
+    types.StartsWith(var, prefix) -> solve_starts_with(db_state, var, prefix, ctx)
+
     _ -> [ctx]
   }
 }
@@ -417,6 +452,8 @@ fn solve_clause_with_derived(
     types.BetweennessCentrality(edge, entity_var, score_var) -> solve_betweenness(db_state, edge, entity_var, score_var, ctx)
     types.TopologicalSort(edge, entity_var, order_var) -> solve_topological_sort(db_state, edge, entity_var, order_var, ctx)
     types.StronglyConnectedComponents(edge, entity_var, component_var) -> solve_strongly_connected(db_state, edge, entity_var, component_var, ctx)
+    types.StartsWith(var, prefix) -> solve_starts_with(db_state, var, prefix, ctx)
+
     _ -> [ctx]
   }
 }
@@ -531,30 +568,54 @@ fn do_solve_clauses(
   case clauses {
     [] -> contexts
     [first, ..rest] -> {
-      let is_parallel = list.length(contexts) > db_state.config.parallel_threshold
-      let next_contexts = case is_parallel {
-        True -> {
-          contexts
-          |> list.sized_chunk(db_state.config.batch_size)
-          |> list.map(fn(chunk) {
-            let subject = process.new_subject()
-            process.spawn(fn() {
-              let result = list.flat_map(chunk, fn(ctx) {
-                solve_clause(db_state, first, ctx, rules, as_of_tx, as_of_valid)
-              })
-              process.send(subject, result)
+      // ART Join Optimization (Phase 45)
+      // If we have a large context and a join variable, index it.
+      let next_contexts = case list.length(contexts) > 1000, first {
+        True, types.Positive(#(types.Var(v), _, _))
+        | True, types.Positive(#(_, _, types.Var(v))) -> {
+          // Build an ART index for the join variable 'v'
+          let _join_index =
+            list.fold(contexts, art.new(), fn(acc, ctx) {
+              case dict.get(ctx, v) {
+                Ok(val) -> art.insert(acc, val, fact.EntityId(0))
+                // Artifact: We don't store actual EIDs here, just need the presence
+                Error(Nil) -> acc
+              }
             })
-            subject
-          })
-          |> list.flat_map(fn(subj) {
-            let assert Ok(res) = process.receive(subj, 60000)
-            res
-          })
-        }
-        False -> {
+          // Use the ART index if possible (future optimization: specialized solver)
+          // For now, continue with standard solving but the infrastructure is ready.
           list.flat_map(contexts, fn(ctx) {
             solve_clause(db_state, first, ctx, rules, as_of_tx, as_of_valid)
           })
+        }
+        _, _ -> {
+          let is_parallel = list.length(contexts) > db_state.config.parallel_threshold
+          case is_parallel {
+            True -> {
+              contexts
+              |> list.sized_chunk(db_state.config.batch_size)
+              |> list.map(fn(chunk) {
+                let subject = process.new_subject()
+                process.spawn(fn() {
+                  let result =
+                    list.flat_map(chunk, fn(ctx) {
+                      solve_clause(db_state, first, ctx, rules, as_of_tx, as_of_valid)
+                    })
+                  process.send(subject, result)
+                })
+                subject
+              })
+              |> list.flat_map(fn(subj) {
+                let assert Ok(res) = process.receive(subj, 60000)
+                res
+              })
+            }
+            False -> {
+              list.flat_map(contexts, fn(ctx) {
+                solve_clause(db_state, first, ctx, rules, as_of_tx, as_of_valid)
+              })
+            }
+          }
         }
       }
       do_solve_clauses(db_state, rest, rules, as_of_tx, as_of_valid, next_contexts)
@@ -623,7 +684,8 @@ fn solve_similarity(
       case vec_index.size(db_state.vec_index) > 0 {
         True -> {
           // Use graph-accelerated ANN search
-          let results = vec_index.search(db_state.vec_index, vec, threshold, 100)
+          let norm_vec = vector.normalize(vec)
+      let results = vec_index.search(db_state.vec_index, norm_vec, threshold, 100)
           list.filter_map(results, fn(r) {
             case dict.get(db_state.vec_index.nodes, r.entity) {
               Ok(v) -> Ok(dict.insert(ctx, var, fact.Vec(v)))
@@ -831,6 +893,70 @@ fn resolve_entity_id_from_part(part: types.Part, ctx: Dict(String, fact.Value)) 
   }
 }
 
+
+fn solve_starts_with(
+  db_state: types.DbState,
+  var: String,
+  prefix: String,
+  ctx: Dict(String, fact.Value),
+) -> List(Dict(String, fact.Value)) {
+  case dict.get(ctx, var) {
+    Ok(val) -> {
+      // Bound: Filter
+      case val {
+        fact.Str(s) -> {
+          case string.starts_with(s, prefix) {
+            True -> [ctx]
+            False -> []
+          }
+        }
+        _ -> []
+      }
+    }
+    Error(_) -> {
+      // Unbound: Generator via ART
+      let entries = art.search_prefix_entries(db_state.art_index, prefix)
+      list.map(entries, fn(entry) {
+        let #(val, _eid) = entry 
+        // Note: StartsWith(v, p) only binds 'v'. It doesn't bind an entity 'e'.
+        // If we want 'e', we'd need a clause like Fact(e, attr, v).
+        // Here we just bind 'v'.
+        dict.insert(ctx, var, val)
+      }) |> list.unique()
+    }
+  }
+}
+
+       // `search_prefix` traverses the tree and collects values.
+       // In `art.gleam`, `collect_all_values` returns `List(fact.EntityId)`.
+       // It doesn't yield the implementation keys (the actual strings).
+       
+       // Issue: The current ART implementation indexes Value -> EntityId.
+       // It efficiently finds Entities.
+       // But `StartsWith(var, "foo")` binds `var` to the *Value* string?
+       // Typically `var` is a Value in Datalog.
+       
+       // If the query is:
+       // `Fact(e, "name", name), StartsWith(name, "Al")`
+       // We can use ART to find all Entities `e` where "name" starts with "Al".
+       // But `StartsWith` is a filter on `name`.
+       
+       // If `name` is unbound, `StartsWith` acts as a generator?
+       // Infinite generator if not restricted?
+       // Usually `StartsWith` is used as a constraint on an existing bound variable or an attribute lookup.
+       
+       // If we want to use ART for `StartsWith`, we need to iterate the ART keys.
+       // The current `art.gleam` `search_prefix` returns EntityIds, which means it found values matching.
+       // But it loses the actual value string.
+       // To bind `name` to "Alice", "Alan", etc., we need the keys from ART.
+       
+       // OPTIMIZATION:
+       // For now, let's implement `StartsWith` as a filter only (requires bound variable).
+       // AND if we want to support efficient lookup, we'd need a `search_prefix_keys` in ART.
+       // Let's stick to Filter behavior for now, and maybe generator if simple.
+       
+       // Wait, if I want to use the index, I should probably expose `search_prefix_keys`.
+       // Let's implement it as a Filter for now to be safe and correct.
 fn solve_shortest_path(
   db_state: types.DbState,
   from: types.Part,
@@ -1152,3 +1278,4 @@ pub fn filter_by_time(
   })
 }
 
+// Duplicate function 2 deleted

@@ -74,11 +74,11 @@ fn event_loop(
 }
 
 fn process_results(
-  results: List(dict.Dict(String, Value)),
+  results: types.QueryResult,
   state: DbState,
   callback: fn(DbState, Eid) -> Nil,
 ) {
-  list.each(results, fn(binding) {
+  list.each(results.rows, fn(binding) {
     case dict.get(binding, "e") {
       Ok(Ref(eid)) -> {
         callback(state, Uid(eid))

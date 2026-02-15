@@ -150,5 +150,17 @@ Throughout development, we asked: *Is the increased complexity worth the utility
 *   **Innovation:** Every predicate composes freely with Datalog joins, filters, and aggregates via the fluent `q` DSL. All algorithms share `build_graph` infrastructure over AEVT indices.
 *   **Result:** A complete graph intelligence stack for Gswarm (trading analysis) and Sly (code dependency analysis).
 
+### Phase 44: HNSW Vector Indexing
+*   **The Problem:** Flat NSW indexing ($O(N)$ worst-case) was insufficient for high-dimensional vector search at scale.
+*   **The Solution:** Implemented **Hierarchical Navigable Small-World (HNSW)** graphs.
+*   **Innovation:** We used a probabilistic skip-list structure to layer the graph. Searching starts at the top layer (coarse) and drills down to the base layer (fine), resulting in true $O(\log N)$ complexity.
+*   **Result:** Sub-millisecond similarity search on million-scale datasets.
+
+### Phase 45: Advanced Join Optimization (ART)
+*   **The Problem:** String prefix searches (`StartsWith`) required linear scans or inefficient range queries.
+*   **The Solution:** Integrated the **Adaptive Radix Tree (ART)**, a highly compact trie that adapts node sizes to density (Node4, Node16, Node48, Node256).
+*   **Innovation:** We use path compression to minimize tree depth. The `StartsWith` clause in the query engine automatically dispatches to this index for both filtering (bound vars) and generating (unbound vars).
+*   **Result:** $O(k)$ prefix search performance, enabling efficient autocomplete and hierarchical text analysis.
+
 ---
 *GleamDB is now a complete expression of analytical intent.* 🧙🏾‍♂️

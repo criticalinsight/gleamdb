@@ -28,8 +28,8 @@ pub fn join_test() {
   
   // all_vars: ["a", "e"] (sorted alphabetic)
   // Our get_vars returns values in that order.
-  should.equal(list.length(result), 1)
-  should.equal(result, [dict.from_list([#("a", Int(30)), #("e", fact.Ref(fact.EntityId(1)))])])
+  should.equal(list.length(result.rows), 1)
+  should.equal(result.rows, [dict.from_list([#("a", Int(30)), #("e", fact.Ref(fact.EntityId(1)))])])
 }
 
 pub fn retraction_test() {
@@ -39,16 +39,16 @@ pub fn retraction_test() {
   
   // Verify it exists
   let res1 = gleamdb.query(db, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
-  should.equal(res1, [dict.from_list([#("s", Str("active"))])])
+  should.equal(res1.rows, [dict.from_list([#("s", Str("active"))])])
 
   // Retract it
   let assert Ok(_) = gleamdb.retract(db, [#(fact.Uid(fact.EntityId(1)), "status", Str("active"))])
 
   // Verify it's gone
   let res2 = gleamdb.query(db, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
-  should.equal(res2, [])
+  should.equal(res2.rows, [])
 
   // Verify it STILL exists in the past (Time Travel)
   let res_past = gleamdb.as_of(db, 1, [gleamdb.p(#(types.Val(Int(1)), "status", types.Var("s")))])
-  should.equal(res_past, [dict.from_list([#("s", Str("active"))])])
+  should.equal(res_past.rows, [dict.from_list([#("s", Str("active"))])])
 }

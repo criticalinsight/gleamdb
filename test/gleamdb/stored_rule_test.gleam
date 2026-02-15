@@ -1,10 +1,8 @@
 import gleeunit/should
-import gleam/option.{None, Some}
 import gleam/dict
 import gleam/list
 import gleamdb
-import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
-import gleamdb/engine
+import gleamdb/fact.{Uid, EntityId, Ref}
 import gleamdb/shared/types
 
 // Define a rule: ?grandparent(gp, gc) :- parent(gp, p), parent(p, gc)
@@ -28,7 +26,7 @@ pub fn stored_rule_test() {
   // 2. Add Data
   let gp = Uid(EntityId(1))
   let p = Uid(EntityId(2))
-  let gc = Uid(EntityId(3))
+  let _gc = Uid(EntityId(3))
   
   let assert Ok(_) = gleamdb.transact(db, [
     #(gp, "parent", Ref(EntityId(2))), // 1 is parent of 2
@@ -42,8 +40,8 @@ pub fn stored_rule_test() {
   // We don't pass any rules explicitly!
   let results = gleamdb.query_with_rules(db, query, [])
   
-  list.length(results) |> should.equal(1)
-  let assert [res] = results
+  list.length(results.rows) |> should.equal(1)
+  let assert [res] = results.rows
   dict.get(res, "x") |> should.equal(Ok(Ref(EntityId(1))))
   dict.get(res, "y") |> should.equal(Ok(Ref(EntityId(3))))
 }
@@ -65,5 +63,5 @@ pub fn rule_persistence_test() {
    // Let's verify the fact exists!
    let query_rule = [types.Positive(#(types.Var("e"), "_rule/content", types.Var("content")))]
    let results = gleamdb.query(db, query_rule)
-   list.length(results) |> should.equal(1)
+   list.length(results.rows) |> should.equal(1)
 }

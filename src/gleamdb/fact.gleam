@@ -102,6 +102,21 @@ pub type Datom {
   )
 }
 
+pub fn to_uid(id: EntityId) -> Eid {
+  Uid(id)
+}
+
+/// Create a new Datom with default valid_time = 0.
+pub fn new_datom(
+  entity entity: Entity,
+  attribute attribute: Attribute,
+  value value: Value,
+  tx tx: Transaction,
+  operation operation: Operation,
+) -> Datom {
+  Datom(entity, attribute, value, tx, 0, operation)
+}
+
 pub fn encode_compact(v: Value) -> BitArray {
   case v {
     Str(s) -> {

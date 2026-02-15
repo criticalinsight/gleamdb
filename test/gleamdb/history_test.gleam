@@ -72,5 +72,5 @@ pub fn recovery_durability_test() {
     gleamdb.p(#(types.Var("e"), "system/status", types.Var("s")))
   ])
   
-  should.equal(list.length(results), 1)
+  should.equal(list.length(results.rows), 1)
 }

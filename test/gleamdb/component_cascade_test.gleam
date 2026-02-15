@@ -27,7 +27,7 @@ pub fn component_cascade_test() {
     gleamdb.p(#(types.Var("o"), "order/items", types.Var("i"))),
     gleamdb.p(#(types.Var("i"), "item/name", types.Var("n")))
   ])
-  should.equal(list.length(results), 2)
+  should.equal(list.length(results.rows), 2)
   
   // 4. Retract Order (should cascade to items)
   let assert Ok(_) = gleamdb.retract(db, [
@@ -43,5 +43,5 @@ pub fn component_cascade_test() {
   let results_after = gleamdb.query(db, [
     gleamdb.p(#(types.Var("i"), "item/name", types.Var("n")))
   ])
-  should.equal(list.length(results_after), 0)
+  should.equal(list.length(results_after.rows), 0)
 }

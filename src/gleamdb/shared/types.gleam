@@ -6,6 +6,7 @@ import gleamdb/index.{type Index, type AIndex, type AVIndex}
 import gleamdb/storage.{type StorageAdapter}
 import gleamdb/raft
 import gleamdb/vec_index
+import gleamdb/index/art
 
 pub type Config {
   Config(parallel_threshold: Int, batch_size: Int)
@@ -28,6 +29,7 @@ pub type DbState {
     ets_name: Option(String),
     raft_state: raft.RaftState,
     vec_index: vec_index.VecIndex,
+    art_index: art.Art,
     predicates: Dict(String, fn(fact.Value) -> Bool),
     stored_rules: List(Rule),
     virtual_predicates: Dict(String, VirtualAdapter),
@@ -58,6 +60,7 @@ pub type BodyClause {
     filter: List(BodyClause),
   )
 
+  StartsWith(variable: String, prefix: String)
   Similarity(variable: String, vector: List(Float), threshold: Float)
   Temporal(variable: String, entity: Part, attribute: String, start: Int, end: Int)
   Limit(n: Int)
@@ -138,8 +141,28 @@ pub type AggFunc {
   Median
 }
 
-pub type QueryResult =
-  List(Dict(String, fact.Value))
+pub type SpeculativeResult {
+  SpeculativeResult(
+    state: DbState,
+    datoms: List(fact.Datom),
+  )
+}
+
+pub type QueryMetadata {
+  QueryMetadata(
+    tx_id: Option(Int),
+    valid_time: Option(Int),
+    execution_time_ms: Int,
+    shard_id: Option(Int),
+  )
+}
+
+pub type QueryResult {
+  QueryResult(
+    rows: List(Dict(String, fact.Value)),
+    metadata: QueryMetadata,
+  )
+}
 
 pub type ReactiveMessage {
   Subscribe(
@@ -163,4 +186,13 @@ pub type Expression {
   Lt(Part, Part)
   And(Expression, Expression)
   Or(Expression, Expression)
+}
+
+pub fn eid_to_integer(id: fact.EntityId) -> Int {
+  let fact.EntityId(i) = id
+  i
+}
+
+pub fn integer_to_eid(i: Int) -> fact.EntityId {
+  fact.EntityId(i)
 }

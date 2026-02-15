@@ -2,9 +2,7 @@ import gleam/list
 import gleam/result
 import gleamdb
 import gleamdb/fact.{Int}
-import gleamdb/shared/types.{Rule, Val, Var}
-import gleamdb/engine.{Single, Many}
-import gleamdb/storage
+import gleamdb/shared/types.{Rule}
 import gleam/dict
 import gleeunit
 import gleeunit/should
@@ -45,13 +43,12 @@ pub fn recursive_ancestor_test() {
   ], rules)
   
   // Should find 2 and 3
-  // Should find 2 and 3
-  should.equal(list.length(result), 2)
+  should.equal(list.length(result.rows), 2)
   let expected = [
     dict.from_list([#("anc", Int(2))]),
     dict.from_list([#("anc", Int(3))])
   ]
   // Ordering might vary
-  should.be_true(list.contains(expected, list.first(result) |> result.unwrap(dict.new())))
-  should.be_true(list.contains(expected, list.last(result) |> result.unwrap(dict.new())))
+  should.be_true(list.contains(expected, list.first(result.rows) |> result.unwrap(dict.new())))
+  should.be_true(list.contains(expected, list.last(result.rows) |> result.unwrap(dict.new())))
 }

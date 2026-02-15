@@ -35,7 +35,7 @@ pub fn reactive_delta_test() {
   let assert Ok(msg) = process.receive(subject, 1000)
   case msg {
     Initial(results) -> {
-      should.equal(list.length(results), 1)
+      should.equal(list.length(results.rows), 1)
     }
     _ -> should.fail()
   }
@@ -50,8 +50,8 @@ pub fn reactive_delta_test() {
   let assert Ok(msg2) = process.receive(subject, 1000)
   case msg2 {
     Delta(added, removed) -> {
-      should.equal(list.length(added), 1)
-      should.equal(list.length(removed), 0)
+      should.equal(list.length(added.rows), 1)
+      should.equal(list.length(removed.rows), 0)
       io.println("Received Delta Added")
     }
     _ -> should.fail()
@@ -70,8 +70,8 @@ pub fn reactive_delta_test() {
   let assert Ok(msg3) = process.receive(subject, 1000)
   case msg3 {
     Delta(added, removed) -> {
-      should.equal(list.length(added), 0)
-      should.equal(list.length(removed), 1)
+      should.equal(list.length(added.rows), 0)
+      should.equal(list.length(removed.rows), 1)
       io.println("Received Delta Removed")
     }
     _ -> should.fail()

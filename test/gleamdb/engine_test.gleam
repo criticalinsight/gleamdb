@@ -9,6 +9,7 @@ import gleamdb/storage
 import gleamdb/reactive
 import gleamdb/raft
 import gleamdb/vec_index
+import gleamdb/index/art
 
 pub fn engine_run_test() {
   let assert Ok(reactive_subject) = reactive.start_link()
@@ -29,6 +30,7 @@ pub fn engine_run_test() {
       ets_name: None,
       raft_state: raft.new([]),
       vec_index: vec_index.new(),
+      art_index: art.new(),
       predicates: dict.new(),
       stored_rules: [],
       virtual_predicates: dict.new(),
@@ -37,7 +39,7 @@ pub fn engine_run_test() {
 
   let query = [types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice"))))]
   let results = engine.run(state, query, [], None, None)
-  should.equal(list.length(results), 0)
+  should.equal(list.length(results.rows), 0)
 }
 
 pub fn pull_test() {
@@ -59,6 +61,7 @@ pub fn pull_test() {
       ets_name: None,
       raft_state: raft.new([]),
       vec_index: vec_index.new(),
+      art_index: art.new(),
       predicates: dict.new(),
       stored_rules: [],
       virtual_predicates: dict.new(),

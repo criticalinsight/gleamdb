@@ -67,4 +67,10 @@ The Sovereign Fabric has shifted from a pure SQLite-forwarding model to a **Mnes
 - **Persistence** is handles by `gleamdb_mnesia_ffi` for disc-durable fact storage.
 
 ---
-*Status: Synchronized with Phase 20 reality.*
+*Status: Synchronized with Phase 43 reality.*
+
+## Phase 42-43 Retrospective: Sharded Performance & Stability
+The Gswarm production cycle revealed that sharding is not just about throughput, but **Recovery Velocity**.
+- **Vector Crisis**: $O(N^2)$ scaling in vector indices is fatal for historical replay. NSW search is the mandatory baseline for Sovereign Intelligence.
+- **Name Hygiene**: Distributed nodes must minimize `global` registration to avoid startup contention.
+- **Parallel Boot**: Shards must initialize concurrently to saturate silicon and minimize time-to-market-readiness.

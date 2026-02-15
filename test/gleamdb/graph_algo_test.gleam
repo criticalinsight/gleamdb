@@ -7,8 +7,9 @@ import gleamdb
 import gleamdb/index
 import gleamdb/raft
 import gleamdb/vec_index
+import gleamdb/index/art
 import gleam/erlang/process
-import gleamdb/fact.{Uid, EntityId, Str, Int, Ref}
+import gleamdb/fact.{EntityId, Str, Ref}
 import gleamdb/shared/types
 import gleamdb/storage
 import gleamdb/algo/graph
@@ -32,6 +33,7 @@ pub fn shortest_path_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -79,6 +81,7 @@ pub fn pagerank_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -144,8 +147,8 @@ pub fn graph_query_test() {
     |> q.to_clauses()
 
   let results = engine.run(state, clauses, [], None, None)
-  should.equal(list.length(results), 1)
-  let assert [row] = results
+  should.equal(list.length(results.rows), 1)
+  let assert [row] = results.rows
   let assert Ok(fact.List(path)) = dict.get(row, "p")
   should.equal(list.length(path), 3)
   
@@ -155,7 +158,7 @@ pub fn graph_query_test() {
     |> q.to_clauses()
     
   let results = engine.run(state, clauses, [], None, None)
-  should.equal(list.length(results), 4)
+  should.equal(list.length(results.rows), 4)
   
   // 3. Reachable Query — all nodes reachable from A
   let clauses = q.new()
@@ -165,7 +168,7 @@ pub fn graph_query_test() {
     
   let results = engine.run(state, clauses, [], None, None)
   // A can reach B, C, D (plus itself) — at least 3 non-self
-  should.be_true(list.length(results) >= 3)
+  should.be_true(list.length(results.rows) >= 3)
   
   // 4. Connected Components Query — all nodes labeled
   let clauses = q.new()
@@ -173,7 +176,7 @@ pub fn graph_query_test() {
     |> q.to_clauses()
     
   let results = engine.run(state, clauses, [], None, None)
-  should.equal(list.length(results), 4)
+  should.equal(list.length(results.rows), 4)
   
   // 5. Neighbors Query — 1-hop from B
   let clauses = q.new()
@@ -183,7 +186,7 @@ pub fn graph_query_test() {
     
   let results = engine.run(state, clauses, [], None, None)
   // B's 1-hop neighbors: C, D
-  should.equal(list.length(results), 2)
+  should.equal(list.length(results.rows), 2)
 }
 
 pub fn reachable_test() {
@@ -203,6 +206,7 @@ pub fn reachable_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -252,6 +256,7 @@ pub fn connected_components_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -314,6 +319,7 @@ pub fn neighbors_khop_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -371,6 +377,7 @@ pub fn cycle_detect_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -422,6 +429,7 @@ pub fn betweenness_centrality_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -476,6 +484,7 @@ pub fn topological_sort_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),
@@ -521,7 +530,7 @@ pub fn topological_sort_test() {
   
   // Should fail (cycle)
   let assert Error(cycle_nodes) = graph.topological_sort(db_state2, "dep")
-  should.be_true(list.length(cycle_nodes) > 0)
+  should.be_true(cycle_nodes != [])
 }
 
 pub fn strongly_connected_components_test() {
@@ -541,6 +550,7 @@ pub fn strongly_connected_components_test() {
     ets_name: None,
     raft_state: raft.new([]),
     vec_index: vec_index.new(),
+    art_index: art.new(),
     predicates: dict.new(),
     stored_rules: [],
     virtual_predicates: dict.new(),

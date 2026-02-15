@@ -6,7 +6,7 @@ import gleeunit
 import gleeunit/should
 import gleamdb
 import gleamdb/q
-import gleamdb/fact.{Str, Ref}
+import gleamdb/fact.{Str}
 import gleamdb/event
 import gleamdb/engine
 
@@ -33,9 +33,9 @@ pub fn event_assertion_test() {
     |> q.to_clauses()
     
   let results = engine.run(state, query, [], None, None)
-  should.equal(list.length(results), 1)
+  should.equal(list.length(results.rows), 1)
   
-  let assert Ok(binding) = list.first(results)
+  let assert Ok(binding) = list.first(results.rows)
   should.equal(dict.get(binding, "email"), Ok(Str("alice@example.com")))
 }
 
@@ -54,7 +54,7 @@ pub fn event_idempotency_test() {
     |> q.to_clauses()
     
   let results = engine.run(state, query, [], None, None)
-  should.equal(list.length(results), 1)
+  should.equal(list.length(results.rows), 1)
 }
 
 pub fn event_reactive_test() {

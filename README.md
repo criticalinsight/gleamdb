@@ -14,7 +14,8 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 ## 🚀 Key Features
 - **Silicon Saturation**: Lock-free, concurrent read indices via ETS (O(1) access).
 - **Time Series & Analytics**: Native `Temporal` queries, `Aggregate` functions, and `OrderBy`/`Limit` push-down predicates.
-- **Vector Sovereignty**: Native similarity search via NSW (Navigable Small-World) graph index — O(log N).
+- **Vector Sovereignty**: Native similarity search via HNSW (Hierarchical Navigable Small-World) graph index — $O(\log N)$.
+- **Prefix Search**: Adaptive Radix Tree (ART) index for $O(k)$ string prefix matching.
 - **Raft HA**: Term-based leader election for zero-downtime failover.
 - **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Native `phash2` support enables deterministic Entity IDs for **Idempotent Transactions**.
 - **Native Sharding (v1.7.0)**: Horizontal partition of facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware. Each shard is an isolated Raft consensus group.
@@ -33,7 +34,7 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 
 - **Concurrency**: Lock-free reads via Silicon Saturation (ETS), allowing linear scaling with CPU cores.
 - **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL) or **~2,500 events/sec** (Durable Mnesia). Sharding scales this linearly with logical cores (>10k+ durable events/sec).
-- **Similarity**: O(log N) via NSW graph index (vs O(N) brute-force scan).
+- **Similarity**: $O(\log N)$ via HNSW graph index (vs O(N) brute-force scan).
 - **Latency**: Sub-millisecond read access for single-entity lookups.
 
 ## 🛠️ Usage
@@ -164,7 +165,8 @@ gleamdb.set_schema(db, "ticker/price", config)
 ```
 
 ## 📚 Documentation
-- [Search & Similarity (Vector NSW)](docs/features/vector_index.md) // Placeholder but good to have
+- [Search & Similarity (HNSW)](docs/features/vector_index.md)
+- [Prefix Search (ART)](docs/features/art.md)
 - [Graph Algorithms](docs/features/graph_algorithms.md)
 - [Data Federation](docs/features/federation.md)
 - [Time Travel (Diff API)](docs/features/time_travel.md)

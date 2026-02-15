@@ -1,4 +1,3 @@
-import gleam/option.{None, Some}
 import gleeunit/should
 import gleamdb
 import gleamdb/fact

@@ -25,7 +25,7 @@ pub fn parallel_execution_test() {
     types.Filter(types.Gt(types.Var("v"), types.Val(fact.Int(0)))) // Simple filter to force processing
   ])
   
-  should.equal(list.length(result), 600)
+  should.equal(list.length(result.rows), 600)
 }
 
 fn range(start: Int, end: Int) -> List(Int) {

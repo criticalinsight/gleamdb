@@ -1,10 +1,8 @@
 import gleam/list
 import gleam/int
 import gleamdb
-import gleamdb/fact.{Ref, Str, Datom, EntityId, Int, Assert}
+import gleamdb/fact.{Int}
 import gleamdb/shared/types.{Rule, Val, Var}
-import gleamdb/engine
-import gleamdb/storage
 import gleam/dict
 import gleeunit
 import gleeunit/should
@@ -38,7 +36,7 @@ pub fn join_optimization_test() {
     gleamdb.p(#(Var("e"), "val", Var("v")))
   ])
   
-  should.equal(result, [dict.from_list([#("e", fact.Ref(fact.EntityId(101))), #("v", Int(999))])])
+  should.equal(result.rows, [dict.from_list([#("e", fact.Ref(fact.EntityId(101))), #("v", Int(999))])])
 }
 
 pub fn large_recursion_benchmark_test() {
@@ -66,5 +64,5 @@ pub fn large_recursion_benchmark_test() {
     gleamdb.p(#(Var("e"), "ancestor", Val(Int(50))))
   ], rules)
   
-  should.equal(list.length(result), 49)
+  should.equal(list.length(result.rows), 49)
 }

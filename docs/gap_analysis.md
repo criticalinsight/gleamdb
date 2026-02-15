@@ -46,6 +46,8 @@ As GleamDB reaches Phase 23, it is a robust engine that has **closed the critica
 ### 14. The Completeness (Phase 30) — ✅ Atomic Logic (Tx Functions) and Rich Integrity (Composites).
 ### 15. Sovereign Intelligence (Phase 31) — ✅ Distributed Aggregates and Parallel Query Execution.
 ### 16. Graph Algorithm Suite (Phase 32) — ✅ 9 native predicates (ShortestPath, PageRank, Reachable, ConnectedComponents, Neighbors, CycleDetect, BetweennessCentrality, TopologicalSort, StronglyConnectedComponents).
+### 17. Vector Performance Crisis (Phase 42) — ✅ $O(\log N)$ NSW search and Unit-Vector dot products.
+### 18. Parallel Recovery (Phase 43) — ✅ High-velocity sharded initialization (>1B reductions/process).
 
 ---
 

@@ -110,7 +110,9 @@ Every piece of data is stored as a Datomic-style tuple:
 To support efficient Datalog execution, we maintain lock-free ETS indices:
 - **EAVT**: Bucketed `Dict` or ETS `duplicate_bag` for entity-first lookups.
 - **AEVT**: Attribute-first lookups for index scans.
-- **AVET**: Value-based lookups for uniqueness and similarity.
+- **AVET**: Value-based lookups for uniqueness.
+- **HNSW**: Hierarchical Navigable Small-World graph for vector similarity ($O(\log N)$).
+- **ART**: Adaptive Radix Tree for string prefix search ($O(k)$).
 - **Silicon Saturation**: ETS `read_concurrency` enables O(1) concurrent reads across all nodes.
 
 ### 3. Architecture components
@@ -141,6 +143,8 @@ Native algorithmic and external data primitives:
 *   **ShortestPath(from, to, edge, path_var, cost_var)**: BFS traversal over `edge` attribute.
 *   **PageRank(entity_var, edge, rank_var, damping, iterations)**: Iterative power method for node ranking.
 *   **Virtual(predicate, args, outputs)**: Delegation to registered external adapters (Federation).
+*   **StartsWith(variable, prefix)**: String prefix filtering and generation using ART.
+*   **Similarity(variable, vector, threshold)**: Vector similarity search using HNSW.
 
 ### 8. Time Travel API
 *   **`gleamdb.as_of(db, tx)`**: Query the database state as it existed at a specific transaction.

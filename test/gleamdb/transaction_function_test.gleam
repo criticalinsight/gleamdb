@@ -1,6 +1,6 @@
 import gleam/list
 import gleam/dict
-import gleam/option.{None, Some}
+import gleam/option
 import gleeunit/should
 import gleamdb
 import gleamdb/fact
@@ -54,7 +54,7 @@ pub fn transaction_function_temporal_test() {
   let db = gleamdb.new()
   
   // Define a function that asserts a fact ONLY if queried at a specific valid time
-  let temporal_fn = fn(state: types.DbState, _tx: Int, vt: Int, _args: List(fact.Value)) {
+  let temporal_fn = fn(_state: types.DbState, _tx: Int, vt: Int, _args: List(fact.Value)) {
     [#(fact.uid(1), "debug/valid-time", fact.Int(vt))]
   }
   
@@ -67,10 +67,10 @@ pub fn transaction_function_temporal_test() {
   ], vt_target)
   
   // Verify that the fact was recorded with the correct valid time
-  let state = gleamdb.get_state(db)
+  let _state = gleamdb.get_state(db)
   let results = gleamdb.as_of_valid(db, vt_target, [gleamdb.p(#(types.Val(fact.Ref(fact.EntityId(1))), "debug/valid-time", types.Var("v")))])
   
-  results |> list.first() |> should.be_ok()
-  let binding = results |> list.first() |> option.from_result() |> option.unwrap(dict.new())
+  results.rows |> list.first() |> should.be_ok()
+  let binding = results.rows |> list.first() |> option.from_result() |> option.unwrap(dict.new())
   dict.get(binding, "v") |> should.equal(Ok(fact.Int(vt_target)))
 }

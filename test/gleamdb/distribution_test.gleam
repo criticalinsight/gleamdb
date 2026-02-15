@@ -18,5 +18,5 @@ pub fn distribution_test() {
     gleamdb.p(#(types.Var("e"), "name", types.Var("n")))
   ])
   
-  should.equal(list.length(result), 1)
+  should.equal(list.length(result.rows), 1)
 }

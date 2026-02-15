@@ -18,13 +18,13 @@ pub fn bitemporal_basic_test() {
   let results_50 = gleamdb.as_of_valid(db, 50, [
     gleamdb.p(#(types.Var("e"), "user/location", types.Var("loc")))
   ])
-  should.equal(list.length(results_50), 0)
+  should.equal(list.length(results_50.rows), 0)
   
   // 3. Query at Valid Time 100 (should have London)
   let results_100 = gleamdb.as_of_valid(db, 100, [
     gleamdb.p(#(types.Var("e"), "user/location", types.Var("loc")))
   ])
-  should.equal(list.length(results_100), 1)
+  should.equal(list.length(results_100.rows), 1)
 }
 
 pub fn bitemporal_correction_test() {
@@ -48,9 +48,8 @@ pub fn bitemporal_correction_test() {
     gleamdb.p(#(types.Var("e"), "user/location", types.Var("loc")))
   ])
   
-  should.equal(list.length(results), 1)
-  
-  let assert [res] = results
+  should.equal(list.length(results.rows), 1)
+  let assert [res] = results.rows
   should.equal(dict.get(res, "loc"), Ok(fact.Str("Paris")))
 }
 
@@ -66,11 +65,11 @@ pub fn bitemporal_proactive_test() {
   let results_now = gleamdb.query(db, [
     gleamdb.p(#(types.Var("e"), "user/role", types.Var("r")))
   ])
-  should.equal(list.length(results_now), 0)
+  should.equal(list.length(results_now.rows), 0)
   
   // Query in future
   let results_future = gleamdb.as_of_valid(db, 2000000001, [
     gleamdb.p(#(types.Var("e"), "user/role", types.Var("r")))
   ])
-  should.equal(list.length(results_future), 1)
+  should.equal(list.length(results_future.rows), 1)
 }

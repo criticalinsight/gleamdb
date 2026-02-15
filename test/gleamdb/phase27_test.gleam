@@ -2,7 +2,6 @@ import gleam/dict
 import gleam/list
 import gleamdb
 import gleamdb/fact.{Int, Str, Ref}
-import gleamdb/shared/types.{type DbState}
 import gleamdb/engine.{Wildcard, Map, Single}
 import gleeunit
 import gleeunit/should
@@ -18,10 +17,11 @@ pub fn speculative_test() {
   let assert Ok(state1) = gleamdb.transact(db, [#(fact.Uid(fact.EntityId(1)), "name", Str("Alice"))])
   
   // 2. Speculative fact
-  let assert Ok(state2) = gleamdb.with_facts(state1, [#(fact.Uid(fact.EntityId(1)), "balance", Int(100))])
+  let assert Ok(spec_res) = gleamdb.with_facts(state1, [#(fact.Uid(fact.EntityId(1)), "balance", Int(100))])
+  let state2 = spec_res.state
   
   // 3. Verify state2 has both
-  let res2 = gleamdb.pull(db, fact.Uid(fact.EntityId(1)), [Wildcard])
+  let _res2 = gleamdb.pull(db, fact.Uid(fact.EntityId(1)), [Wildcard])
   // Wait, gleamdb.pull takes Db (actor) and calls get_state. 
   // I need a way to pull from a DbState directly if I want to test speculative states easily via API.
   // Actually, engine.pull(state, ...) is what I should use.

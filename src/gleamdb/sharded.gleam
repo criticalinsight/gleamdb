@@ -24,24 +24,45 @@ pub type ShardedDb {
 pub fn start_sharded(
   cluster_id: String,
   shard_count: Int,
-  adapter: Option(StorageAdapter)
+  adapter: Option(StorageAdapter),
 ) -> Result(ShardedDb, String) {
-  let shards = int.range(from: 0, to: shard_count, with: [], run: fn(acc, i) {
-    let shard_cluster_id = cluster_id <> "_s" <> string.inspect(i)
-    let res = case gleamdb.start_distributed(shard_cluster_id, adapter) {
-      Ok(db) -> Ok(#(i, db))
-      Error(e) -> Error("Failed to start shard " <> string.inspect(i) <> ": " <> string_inspect_actor_error(e))
-    }
-    [res, ..acc]
+  let self = process.new_subject()
+
+  // Spawn shard startups in parallel
+  int.range(from: 0, to: shard_count - 1, with: [], run: fn(acc, i) { [i, ..acc] })
+  |> list.each(fn(i) {
+    process.spawn(fn() {
+      let shard_cluster_id = cluster_id <> "_s" <> string.inspect(i)
+      let res = case gleamdb.start_distributed(shard_cluster_id, adapter) {
+        Ok(db) -> Ok(#(i, db))
+        Error(e) ->
+          Error(
+            "Failed to start shard "
+            <> string.inspect(i)
+            <> ": "
+            <> string_inspect_actor_error(e),
+          )
+      }
+      process.send(self, res)
+    })
   })
-  |> list.try_map(fn(x) { x })
+
+  // Gather results
+  let shards =
+    int.range(from: 0, to: shard_count, with: [], run: fn(acc, _) {
+      case process.receive(self, 600_000) {
+        Ok(res) -> [res, ..acc]
+        Error(_) -> [Error("Timeout starting shards"), ..acc]
+      }
+    })
+    |> list.try_map(fn(x) { x })
 
   case shards {
     Ok(s) -> {
       Ok(ShardedDb(
         shards: dict.from_list(s),
         shard_count: shard_count,
-        cluster_id: cluster_id
+        cluster_id: cluster_id,
       ))
     }
     Error(e) -> Error(e)
@@ -52,24 +73,45 @@ pub fn start_sharded(
 pub fn start_local_sharded(
   cluster_id: String,
   shard_count: Int,
-  adapter: Option(StorageAdapter)
+  adapter: Option(StorageAdapter),
 ) -> Result(ShardedDb, String) {
-  let shards = int.range(from: 0, to: shard_count, with: [], run: fn(acc, i) {
-    let shard_cluster_id = cluster_id <> "_s" <> string.inspect(i)
-    let res = case gleamdb.start_named(shard_cluster_id, adapter) {
-      Ok(db) -> Ok(#(i, db))
-      Error(e) -> Error("Failed to start local shard " <> string.inspect(i) <> ": " <> string_inspect_actor_error(e))
-    }
-    [res, ..acc]
+  let self = process.new_subject()
+
+  // Spawn shard startups in parallel
+  int.range(from: 0, to: shard_count, with: [], run: fn(acc, i) { [i, ..acc] })
+  |> list.each(fn(i) {
+    process.spawn(fn() {
+      let shard_cluster_id = cluster_id <> "_s" <> string.inspect(i)
+      let res = case gleamdb.start_named(shard_cluster_id, adapter) {
+        Ok(db) -> Ok(#(i, db))
+        Error(e) ->
+          Error(
+            "Failed to start local shard "
+            <> string.inspect(i)
+            <> ": "
+            <> string_inspect_actor_error(e),
+          )
+      }
+      process.send(self, res)
+    })
   })
-  |> list.try_map(fn(x) { x })
+
+  // Gather results
+  let shards =
+    int.range(from: 0, to: shard_count, with: [], run: fn(acc, _) {
+      case process.receive(self, 300_000) {
+        Ok(res) -> [res, ..acc]
+        Error(_) -> [Error("Timeout starting shards"), ..acc]
+      }
+    })
+    |> list.try_map(fn(x) { x })
 
   case shards {
     Ok(s) -> {
       Ok(ShardedDb(
         shards: dict.from_list(s),
         shard_count: shard_count,
-        cluster_id: cluster_id
+        cluster_id: cluster_id,
       ))
     }
     Error(e) -> Error(e)
@@ -106,7 +148,7 @@ pub fn transact(db: ShardedDb, facts: List(fact.Fact)) -> Result(List(DbState), 
       })
 
       // Gather
-      int.range(from: 0, to: list.length(grouped_list), with: [], run: fn(acc, _) {
+      int.range(from: 1, to: list.length(grouped_list), with: [], run: fn(acc, _) {
         let res = case process.receive(self, 5000) {
           Ok(res) -> res
           Error(_) -> Error("Timeout waiting for shard")
@@ -134,9 +176,29 @@ pub fn query(db: ShardedDb, clauses: List(BodyClause)) -> QueryResult {
   })
 
   // Gather
-  int.range(from: 0, to: list.length(shard_list), with: [], run: fn(acc, _) {
-    let res = process.receive(self, 5000) |> result.unwrap([])
-    list.append(acc, res)
+  int.range(from: 1, to: list.length(shard_list), with: types.QueryResult(rows: [], metadata: types.QueryMetadata(tx_id: option.None, valid_time: option.None, execution_time_ms: 0, shard_id: option.None)), run: fn(acc, _) {
+    let res = process.receive(self, 5000) 
+    |> result.unwrap(types.QueryResult(rows: [], metadata: types.QueryMetadata(tx_id: option.None, valid_time: option.None, execution_time_ms: 0, shard_id: option.None)))
+    
+    types.QueryResult(
+      rows: list.append(acc.rows, res.rows),
+      metadata: types.QueryMetadata(
+        tx_id: case acc.metadata.tx_id, res.metadata.tx_id {
+          option.Some(a), option.Some(b) -> option.Some(int.max(a, b))
+          option.Some(_), option.None -> acc.metadata.tx_id
+          option.None, option.Some(_) -> res.metadata.tx_id
+          option.None, option.None -> option.None
+        },
+        valid_time: case acc.metadata.valid_time, res.metadata.valid_time {
+          option.Some(a), option.Some(b) -> option.Some(int.max(a, b))
+          option.Some(_), option.None -> acc.metadata.valid_time
+          option.None, option.Some(_) -> res.metadata.valid_time
+          option.None, option.None -> option.None
+        },
+        execution_time_ms: acc.metadata.execution_time_ms + res.metadata.execution_time_ms,
+        shard_id: acc.metadata.shard_id
+      )
+    )
   })
 }
 
@@ -155,7 +217,7 @@ pub fn pull(db: ShardedDb, eid: Eid, pattern: PullPattern) -> PullResult {
   })
 
   // Gather
-  int.range(from: 0, to: list.length(shard_list), with: Map(dict.new()), run: fn(acc, _) {
+  int.range(from: 1, to: list.length(shard_list), with: Map(dict.new()), run: fn(acc, _) {
     let res = process.receive(self, 5000) |> result.unwrap(Map(dict.new()))
     merge_pull_results(acc, res)
   })

@@ -30,9 +30,9 @@ pub fn vector_similarity_test() {
   ])
   
   // Result should be space-1 and tech-1 (both very similar)
-  should.equal(list.length(result), 2)
+  should.equal(list.length(result.rows), 2)
   
-  let ids = list.map(result, fn(row) {
+  let ids = list.map(result.rows, fn(row) {
     let assert Ok(Str(id)) = dict.get(row, "id")
     id
   })
@@ -59,9 +59,9 @@ pub fn vector_discovery_test() {
   ])
   
   // Should find entities 1 and 3
-  should.equal(list.length(results), 2)
+  should.equal(list.length(results.rows), 2)
   
-  let es = list.map(results, fn(row) {
+  let es = list.map(results.rows, fn(row) {
     let assert Ok(fact.Ref(fact.EntityId(e))) = dict.get(row, "e")
     e
   })

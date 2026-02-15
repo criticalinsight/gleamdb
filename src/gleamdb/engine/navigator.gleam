@@ -4,7 +4,7 @@ import gleam/set.{type Set}
 import gleam/option.{Some, None}
 import gleam/string
 import gleamdb/fact
-import gleamdb/shared/types.{type BodyClause, type Part, Var, Val, Positive, Negative, Filter, Bind, Aggregate, Similarity, Temporal, Limit, Offset, OrderBy, GroupBy, ShortestPath, PageRank, Virtual}
+import gleamdb/shared/types.{type BodyClause, type Part, Var, Val, Positive, Negative, Filter, Bind, Aggregate, Similarity, Temporal, Limit, Offset, OrderBy, GroupBy, ShortestPath, PageRank, Virtual, StartsWith}
 
 pub fn plan(clauses: List(BodyClause)) -> List(BodyClause) {
   let #(control, data) = list.partition(clauses, is_control_clause)
@@ -76,6 +76,12 @@ fn estimate_cost(clause: BodyClause, bound_vars: Set(String)) -> Int {
     Temporal(_, _, _, _, _) -> 150 // Temporal range scan
     ShortestPath(_, _, _, _, _) -> 500
     PageRank(_, _, _, _, _) -> 1000
+    StartsWith(var, _) -> {
+      case set.contains(bound_vars, var) {
+        True -> 10 // Filter
+        False -> 50 // Index lookup
+      }
+    }
     Virtual(_, args, _) -> {
       let bound_args = list.filter(args, fn(a) { is_part_bound(a, bound_vars) })
       1000 - list.length(bound_args) * 100
@@ -101,6 +107,7 @@ fn get_clause_vars(clause: BodyClause) -> Set(String) {
       let sub_vars = list.map(filter, get_clause_vars) |> list.fold(set.new(), set.union)
       set.insert(set.insert(sub_vars, var), target)
     }
+    StartsWith(var, _) -> set.from_list([var])
     Similarity(var, _, _) -> set.from_list([var])
     Temporal(var, entity, _, _, _) -> {
       let s = set.from_list([var])
