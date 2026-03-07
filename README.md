@@ -5,13 +5,15 @@
 AaronDB is a high-performance, analytical Datalog engine built natively for the BEAM. It treats the database as an immutable value, preserves full transaction history, and leverages the BEAM's actor model for massive query concurrency.
 
 ## 🧬 Core Philosophy
-1.  **The Rama Pattern**: De-complecting Storage from Query. We use Write-Optimized persistence (Log) and Read-Optimized indices (Silicon Saturation).
-2.  **Immutability**: The database is a value. A transaction produces a *new* database value.
-3.  **Facts, not Objects**: Data is represented as atomic facts: `(Entity, Attribute, Value, Transaction, Operation)`.
-4.  **Datalog Engine**: A semi-naive deductive logic engine supports recursive queries and graph traversals.
-5.  **Pluggable Persistence**: Decoupled engine logic with adapters for **Mnesia** (durability), **SQLite** (standard), and in-memory storage.
+
+1. **The Rama Pattern**: De-complecting Storage from Query. We use Write-Optimized persistence (Log) and Read-Optimized indices (Silicon Saturation).
+2. **Immutability**: The database is a value. A transaction produces a *new* database value.
+3. **Facts, not Objects**: Data is represented as atomic facts: `(Entity, Attribute, Value, Transaction, Operation)`.
+4. **Datalog Engine**: A semi-naive deductive logic engine supports recursive queries and graph traversals.
+5. **Pluggable Persistence**: Decoupled engine logic with adapters for **Mnesia** (durability), **SQLite** (standard), and in-memory storage.
 
 ## 🚀 Key Features
+
 - **Silicon Saturation**: Lock-free, concurrent read indices via ETS (O(1) access).
 - **Time Series & Analytics**: Native `Temporal` queries, `Aggregate` functions, and `OrderBy`/`Limit` push-down predicates.
 - **Vector Sovereignty**: Native similarity search via HNSW (Hierarchical Navigable Small-World) graph index — $O(\log N)$.
@@ -44,7 +46,9 @@ AaronDB is a high-performance, analytical Datalog engine built natively for the 
 - **GleamCMS (v2.2.0)**: A fact-oriented content management system built directly on the engine. Featuring a Lustre interactive editor, decentralized **Fact-Sync Bridge**, and the **AI Site Architect** for generating generative, section-based landing pages with WP-level flourishes.
 
 ## ⚡ Performance
+
 > "Speed is a byproduct of correctness."
+
 
 - **Concurrency**: Lock-free reads via Silicon Saturation (ETS), allowing linear scaling with CPU cores.
 - **Throughput**: Capable of ingesting **~120,000 datoms/sec** (SQLite WAL) or **~2,500 events/sec** (Durable Mnesia). Sharding scales this linearly with logical cores (>10k+ durable events/sec).
@@ -54,7 +58,9 @@ AaronDB is a high-performance, analytical Datalog engine built natively for the 
 ## 🛠️ Usage
 
 ### Installation & Initialization
+
 Add `aarondb` to your `gleam.toml`:
+
 ```toml
 [dependencies]
 aarondb = "2.0.0"
@@ -188,6 +194,7 @@ aarondb.set_schema(db, "ticker/price", config)
 ```
 
 ## 📚 Documentation
+
 - [Search & Similarity (HNSW)](docs/features/vector_index.md)
 - [Prefix Search (ART)](docs/features/art.md)
 - [Cognitive Memory & Semantic Retrieval](docs/features/cognitive_memory.md)
