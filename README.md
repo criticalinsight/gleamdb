@@ -1,8 +1,8 @@
-# GleamDB 🧙🏾‍♂️
+# AaronDB 🧙🏾‍♂️
 
 > "Simplicity is not about making things easy. It is about untangling complexity." — Rich Hickey
 
-GleamDB is a high-performance, analytical Datalog engine built natively for the BEAM. It treats the database as an immutable value, preserves full transaction history, and leverages the BEAM's actor model for massive query concurrency.
+AaronDB is a high-performance, analytical Datalog engine built natively for the BEAM. It treats the database as an immutable value, preserves full transaction history, and leverages the BEAM's actor model for massive query concurrency.
 
 ## 🧬 Core Philosophy
 1.  **The Rama Pattern**: De-complecting Storage from Query. We use Write-Optimized persistence (Log) and Read-Optimized indices (Silicon Saturation).
@@ -18,15 +18,17 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 - **Prefix Search**: Adaptive Radix Tree (ART) index for $O(k)$ string prefix matching.
 - **Raft HA**: Term-based leader election for zero-downtime failover.
 - **ID Sovereignty**: `fact.Ref(EntityId)` de-complects identity. Native `phash2` support enables deterministic Entity IDs for **Idempotent Transactions**.
-- **Native Sharding (v1.7.0)**: Horizontal partition of facts across logical shards (`gleamdb/sharded`) to saturate multi-core hardware. Each shard is an isolated Raft consensus group.
+- **Native Sharding (v1.7.0)**: Horizontal partition of facts across logical shards (`aarondb/sharded`) to saturate multi-core hardware. Each shard is an isolated Raft consensus group.
 - **Distributed Sovereign**: Multi-node replication and transaction forwarding via BEAM distribution.
 - **Graph Algorithm Suite (9 predicates)**: Native `ShortestPath`, `PageRank`, `Reachable`, `ConnectedComponents`, `Neighbors`, `CycleDetect`, `BetweennessCentrality`, `TopologicalSort`, and `StronglyConnectedComponents` — all as composable Datalog predicates.
 - **Data Federation**: Query external data sources (CSV, JSON, APIs) as if they were internal facts via `Virtual` predicates.
-- **Time Travel (Diff)**: Deep temporal introspection with `gleamdb.diff`.
-- **Speculative Soul (Phase 27)**: Treat the database as a pure value with `gleamdb.with_facts` — non-persistent, what-if state transitions.
+- **Time Travel (Diff)**: Deep temporal introspection with `aarondb.diff`.
+- **Speculative Soul (Phase 27)**: Treat the database as a pure value with `aarondb.with_facts` — non-persistent, what-if state transitions.
 - **Enhanced Pull**: Selective exclusion (`pull_except`) and automated graph recursion (`pull_recursive`).
 - **Logical Navigator (Phase 28)**: Cost-based query planner that automatically reorders join clauses for optimal performance.
 - **Sovereign Intelligence (Phase 31)**: Next-gen analytics with **Distributed Aggregates** (`Sum`, `Avg`, `Median`) and **Parallel Query Execution** with configurable thresholds via `Config` type.
+- **Cognitive Memory Engine**: Integrated MuninnDB cognitive primitives. Native implementation of **ACT-R Decay**, **Hebbian Learning**, and **Bayesian Confidence** scoring natively on the BEAM via the `Cognitive(concept, context, threshold, engram_var)` Datalog predicate.
+- **MCP Tool Integration**: Built-in JSON-RPC handlers exposing 35 autonomous agent MCP tools over StdIO.
 - **Temporal Isolation (Phase 2 Stabilization)**: Bidirectional temporal filtering with unified `query_at` API supporting both 'since' (lower bound) and 'as_of' (upper bound) semantics. Native integration across sharded fabric for high-performance period-over-period analytics.
 - **Hybrid Retrieval (Phase 3 & 4)**: Integrated **BM25** (keyword) and **Vector** (semantic) search within a tiered architecture. Supports weighted union scoring and custom metric adapters (Importance, Sentiment).
 - **Stabilization & Performance (Phase 4)**: Restored durable persistence with 5-arity `Datom` support. Demonstrated **~59x query speedup** on temporal datasets via optimized sharded read-paths.
@@ -52,27 +54,27 @@ GleamDB is a high-performance, analytical Datalog engine built natively for the 
 ## 🛠️ Usage
 
 ### Installation & Initialization
-Add `gleamdb` to your `gleam.toml`:
+Add `aarondb` to your `gleam.toml`:
 ```toml
 [dependencies]
-gleamdb = "2.0.0"
+aarondb = "2.0.0"
 ```
 
 Initialize with **Silicon Saturation** (ETS-backed indices) for O(1) concurrent reads:
 ```gleam
-import gleamdb
-import gleamdb/storage
+import aarondb
+import aarondb/storage
 
 // Recommended for high performance
-let assert Ok(db) = gleamdb.start_named("production", Some(storage.sqlite("data.db")))
+let assert Ok(db) = aarondb.start_named("production", Some(storage.sqlite("data.db")))
 ```
 
 ### Basic Transaction
 ```gleam
-import gleamdb
-import gleamdb/fact.{Uid, EntityId, Str}
+import aarondb
+import aarondb/fact.{Uid, EntityId, Str}
 
-let assert Ok(state) = gleamdb.transact(db, [
+let assert Ok(state) = aarondb.transact(db, [
   #(Uid(EntityId(101)), "user/name", Str("Alice")),
   #(Uid(EntityId(101)), "user/name", Str("Alice")),
   #(Uid(EntityId(101)), "user/role", Str("Admin"))
@@ -82,7 +84,7 @@ let assert Ok(state) = gleamdb.transact(db, [
 ### Native Shareded Ingestion (v1.7.0)
 Saturate all cores by partitioning writes:
 ```gleam
-import gleamdb/sharded
+import aarondb/sharded
 
 // Initialize cluster with 8 shards
 let assert Ok(cluster) = sharded.start_link("my_cluster", 8)
@@ -98,7 +100,7 @@ let assert Ok(_) = sharded.batch_ingest(cluster, facts)
 ### Datalog Query
 Use the fluent `q` DSL:
 ```gleam
-import gleamdb/q
+import aarondb/q
 import gleam/dict
 
 let query = q.select(["name"])
@@ -106,25 +108,25 @@ let query = q.select(["name"])
   |> q.where(q.v("e"), "user/name", q.v("name"))
   |> q.to_clauses()
 
-let results = gleamdb.query(db, query)
+let results = aarondb.query(db, query)
 // Returns list of bindings: [#("name", Str("Alice"))]
 ```
 
 ### Vector Similarity Search
 ```gleam
-import gleamdb/shared/types.{Similarity, Val, Var}
+import aarondb/shared/types.{Similarity, Val, Var}
 
 let query = [
   Similarity(Var("market"), [0.1, 0.2, 0.3], 0.9)
 ]
-let results = gleamdb.query(db, query)
+let results = aarondb.query(db, query)
 ```
 
 ### Time Series & Analytics (Phase 23)
 Efficiently query historical data with temporal bounds, ordering, and aggregation:
 
 ```gleam
-import gleamdb/shared/types.{Temporal, OrderBy, Limit, Var, Val, Asc}
+import aarondb/shared/types.{Temporal, OrderBy, Limit, Var, Val, Asc}
 
 // Get the last 100 ticks for a market, ordered by time
 let query = 
@@ -165,7 +167,7 @@ let query = q.new()
   |> q.to_clauses()
 
 // 3. Time Travel: What changed between tx1 and tx3?
-let changes = gleamdb.diff(db, tx1, tx3)
+let changes = aarondb.diff(db, tx1, tx3)
 ```
 
 ### GleamCMS Fact-Sync Bridge
@@ -182,7 +184,7 @@ curl -X POST http://localhost:8000/api/facts/sync \
 ### Memory Safety (Retention)
 ```gleam
 let config = fact.AttributeConfig(unique: False, component: False, retention: fact.LatestOnly)
-gleamdb.set_schema(db, "ticker/price", config)
+aarondb.set_schema(db, "ticker/price", config)
 ```
 
 ## 📚 Documentation
@@ -200,7 +202,7 @@ gleamdb.set_schema(db, "ticker/price", config)
 - [Gap Analysis](docs/gap_analysis.md)
 
 ## 🤝 Contributing
-GleamDB is built with the goal of providing a "Sovereign Knowledge Service" for autonomous agents like **Sly**. Contributions that respect the de-complecting philosophy are welcome.
+AaronDB is built with the goal of providing a "Sovereign Knowledge Service" for autonomous agents like **Sly**. Contributions that respect the de-complecting philosophy are welcome.
 
 ---
 *Built with ❤️ on the BEAM*

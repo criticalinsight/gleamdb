@@ -1,14 +1,24 @@
 import coverage_helper
-import gleam/io
 import gleam/int
+import gleam/io
 import gleam/list
-import gleam/string
 import gleam/result
+import gleam/string
 
 pub type Atom
-pub type Encoding { Utf8 }
-pub type ReportModuleName { GleeunitProgress }
-pub type GleeunitProgressOption { Colored(Bool) }
+
+pub type Encoding {
+  Utf8
+}
+
+pub type ReportModuleName {
+  GleeunitProgress
+}
+
+pub type GleeunitProgressOption {
+  Colored(Bool)
+}
+
 pub type EunitOption {
   Verbose
   NoTty
@@ -28,35 +38,47 @@ fn run_eunit(a: List(Atom), b: List(EunitOption)) -> Result(Nil, Nil)
 fn gleam_to_erlang_module_name(path: String) -> String {
   case string.ends_with(path, ".gleam") {
     True -> path |> string.replace(".gleam", "") |> string.replace("/", "@")
-    False -> path |> string.split("/") |> list.last |> result.unwrap(path) |> string.replace(".erl", "")
+    False ->
+      path
+      |> string.split("/")
+      |> list.last
+      |> result.unwrap(path)
+      |> string.replace(".erl", "")
   }
 }
 
 pub fn main() {
   io.println("🚀 Starting Coverage Analysis...")
   coverage_helper.start()
-  
-  let ebin = "build/dev/erlang/gleamdb/ebin"
-  
+
+  let ebin = "build/dev/erlang/aarondb/ebin"
+
   case coverage_helper.compile(ebin) {
     Ok(modules) -> {
-      io.println("✅ Instrumented " <> int.to_string(list.length(modules)) <> " modules.")
-      
+      io.println(
+        "✅ Instrumented " <> int.to_string(list.length(modules)) <> " modules.",
+      )
+
       // Run tests (re-implementing gleeunit without halt)
-      let options = [Verbose, NoTty, Report(#(GleeunitProgress, [Colored(True)])), ScaleTimeouts(10)]
-      let modules_to_test = 
+      let options = [
+        Verbose,
+        NoTty,
+        Report(#(GleeunitProgress, [Colored(True)])),
+        ScaleTimeouts(10),
+      ]
+      let modules_to_test =
         find_files(matching: "**/*.{erl,gleam}", in: "test")
         |> list.map(gleam_to_erlang_module_name)
         |> list.map(binary_to_atom(_, Utf8))
-      
+
       let _ = run_eunit(modules_to_test, options)
-      
+
       // Analyze and Report
       let results = coverage_helper.analyze(modules)
       coverage_helper.report(results)
     }
     Error(e) -> io.println("❌ Coverage Error: " <> e)
   }
-  
+
   coverage_helper.stop()
 }

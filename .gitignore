@@ -1,4 +1,4 @@
-/gleamdb
+/aarondb
 # Gleam build artifacts
 build/
 *.beam
