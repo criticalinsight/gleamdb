@@ -190,6 +190,7 @@ aarondb.set_schema(db, "ticker/price", config)
 ## 📚 Documentation
 - [Search & Similarity (HNSW)](docs/features/vector_index.md)
 - [Prefix Search (ART)](docs/features/art.md)
+- [Cognitive Memory & Semantic Retrieval](docs/features/cognitive_memory.md)
 - [WAL Streaming (Real-Time Pulse)](docs/features/wal_streaming.md)
 - [Graph Algorithms](docs/features/graph_algorithms.md)
 - [Data Federation](docs/features/federation.md)
