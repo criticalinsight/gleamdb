@@ -1,71 +1,74 @@
 import aarondb/algo/aggregate
-import aarondb/fact.{Float, Int, Str}
-import aarondb/shared/types.{Avg, Count, Max, Median, Min, Sum}
+import aarondb/fact.{Float, Int}
+import aarondb/shared/ast
+import gleeunit
 import gleeunit/should
 
+pub fn main() {
+  gleeunit.main()
+}
+
 pub fn sum_test() {
-  let values = [Int(1), Int(2), Int(3)]
-  aggregate.aggregate(values, Sum)
-  |> should.equal(Ok(Int(6)))
+  let values = [Int(10), Int(20), Int(30)]
+  let assert Ok(res) = aggregate.aggregate(values, ast.Sum)
+  should.equal(res, Int(60))
 
-  let floats = [Float(1.5), Float(2.5)]
-  aggregate.aggregate(floats, Sum)
-  |> should.equal(Ok(Float(4.0)))
+  let floats = [Float(10.5), Float(20.5)]
+  let assert Ok(res2) = aggregate.aggregate(floats, ast.Sum)
+  should.equal(res2, Float(31.0))
 
-  let mixed = [Int(1), Float(2.5)]
-  aggregate.aggregate(mixed, Sum)
-  |> should.equal(Ok(Float(3.5)))
+  let mixed = [Int(10), Float(20.5)]
+  let assert Ok(res3) = aggregate.aggregate(mixed, ast.Sum)
+  should.equal(res3, Float(30.5))
 
   let empty = []
-  aggregate.aggregate(empty, Sum)
-  |> should.equal(Ok(Float(0.0)))
-  // Sum of empty is 0.0 (as float to be safe? Or Int 0? Implementation used Float(0.0) initial accumulator? No, try_fold with Float(0.0))
+  let res4 = aggregate.aggregate(empty, ast.Sum)
+  should.equal(res4, Ok(Int(0)))
 }
 
 pub fn count_test() {
-  let values = [Int(1), Int(2), Int(3)]
-  aggregate.aggregate(values, Count)
-  |> should.equal(Ok(Int(3)))
+  let values = [Int(10), Int(20), Int(30)]
+  let assert Ok(res) = aggregate.aggregate(values, ast.Count)
+  should.equal(res, Int(3))
 
-  let empty = []
-  aggregate.aggregate(empty, Count)
-  |> should.equal(Ok(Int(0)))
+  let empty: List(fact.Value) = []
+  let assert Ok(res2) = aggregate.aggregate(empty, ast.Count)
+  should.equal(res2, Int(0))
 }
 
 pub fn min_max_test() {
-  let values = [Int(10), Int(5), Int(20)]
-  aggregate.aggregate(values, Min)
-  |> should.equal(Ok(Int(5)))
+  let values = [Int(30), Int(10), Int(20)]
+  let assert Ok(min_res) = aggregate.aggregate(values, ast.Min)
+  should.equal(min_res, Int(10))
 
-  aggregate.aggregate(values, Max)
-  |> should.equal(Ok(Int(20)))
+  let assert Ok(max_res) = aggregate.aggregate(values, ast.Max)
+  should.equal(max_res, Int(30))
 
-  let strings = [Str("apple"), Str("banana"), Str("cherry")]
-  aggregate.aggregate(strings, Min)
-  |> should.equal(Ok(Str("apple")))
+  let strings = [fact.Str("cat"), fact.Str("apple"), fact.Str("bat")]
+  let assert Ok(min_s) = aggregate.aggregate(strings, ast.Min)
+  should.equal(min_s, fact.Str("apple"))
 
-  aggregate.aggregate(strings, Max)
-  |> should.equal(Ok(Str("cherry")))
+  let assert Ok(max_s) = aggregate.aggregate(strings, ast.Max)
+  should.equal(max_s, fact.Str("cat"))
 }
 
 pub fn avg_test() {
-  let values = [Int(2), Int(4), Int(6)]
-  aggregate.aggregate(values, Avg)
-  |> should.equal(Ok(Float(4.0)))
+  let values = [Int(10), Int(20), Int(30)]
+  let assert Ok(res) = aggregate.aggregate(values, ast.Avg)
+  should.equal(res, Float(20.0))
 
-  let floats = [Float(2.5), Float(7.5)]
-  aggregate.aggregate(floats, Avg)
-  |> should.equal(Ok(Float(5.0)))
+  let floats = [Float(10.0), Float(20.0), Float(60.0)]
+  let assert Ok(res2) = aggregate.aggregate(floats, ast.Avg)
+  should.equal(res2, Float(30.0))
 }
 
 pub fn median_test() {
-  // Odd length
-  let v1 = [Int(1), Int(5), Int(20)]
-  aggregate.aggregate(v1, Median)
-  |> should.equal(Ok(Int(5)))
+  let v1 = [Int(10), Int(30), Int(20)]
+  let assert Ok(res1) = aggregate.aggregate(v1, ast.Median)
+  should.equal(res1, Int(20))
 
-  // Even length: (2 + 4) / 2 = 3.0
-  let v2 = [Int(1), Int(2), Int(4), Int(5)]
-  aggregate.aggregate(v2, Median)
-  |> should.equal(Ok(Float(3.0)))
+  let v2 = [Int(10), Int(20), Int(30), Int(40)]
+  // (20 + 30) / 2 = 25.0
+  let assert Ok(res2) = aggregate.aggregate(v2, ast.Median)
+  should.equal(res2, Float(25.0))
 }

@@ -89,32 +89,31 @@ pub type Operation {
   Retract
 }
 
-pub type StorageLayout {
-  Row
-  Columnar
-}
-
 pub type Retention {
   All
   LatestOnly
   Last(Int)
 }
 
+pub type Cardinality {
+  One
+  Many
+}
+
+pub type StorageLayout {
+  Row
+  Columnar
+}
+
 pub type StorageTier {
   Memory
   Disk
-  Cloud
 }
 
 pub type EvictionPolicy {
   AlwaysInMemory
+  LRU(Int)
   LruToDisk
-  LruToCloud
-}
-
-pub type Cardinality {
-  Many
-  One
 }
 
 pub type AttributeConfig {
@@ -128,19 +127,6 @@ pub type AttributeConfig {
     layout: StorageLayout,
     tier: StorageTier,
     eviction: EvictionPolicy,
-  )
-}
-
-pub type CrackingNode {
-  Leaf(values: List(Value))
-  Branch(pivot: Value, left: CrackingNode, right: CrackingNode)
-}
-
-pub type ColumnChunk {
-  ColumnChunk(
-    attribute: Attribute,
-    values: CrackingNode,
-    stats: Dict(String, Value),
   )
 }
 
@@ -382,4 +368,8 @@ pub fn decode_datom(bits: BitArray) -> Result(#(Datom, BitArray), Nil) {
     }
     _ -> Error(Nil)
   }
+}
+
+pub fn integer_to_eid(i: Int) -> EntityId {
+  EntityId(i)
 }

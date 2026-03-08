@@ -1,5 +1,6 @@
-import aarondb/fact.{
-  type ColumnChunk, type CrackingNode, type Value, Branch, Float, Int, Leaf, Str,
+import aarondb/fact.{type Value, Float, Int, Str}
+import aarondb/storage/internal.{
+  type CrackingNode, type StorageChunk, Branch, Leaf,
 }
 import gleam/float
 import gleam/int
@@ -23,8 +24,8 @@ pub fn partition(node: CrackingNode, pivot: fact.Value) -> CrackingNode {
   }
 }
 
-pub fn crack_chunk(chunk: ColumnChunk, pivot: Value) -> ColumnChunk {
-  fact.ColumnChunk(..chunk, values: crack_node(chunk.values, pivot))
+pub fn crack_chunk(chunk: StorageChunk, pivot: Value) -> StorageChunk {
+  internal.StorageChunk(..chunk, values: crack_node(chunk.values, pivot))
 }
 
 fn crack_node(node: CrackingNode, pivot: Value) -> CrackingNode {

@@ -1,10 +1,9 @@
 import aarondb
 import aarondb/fact
 import aarondb/q
-import aarondb/shared/types
 import gleam/dict
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{None}
 import gleeunit/should
 
 pub fn columnar_aggregate_test() {

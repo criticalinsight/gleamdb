@@ -1,15 +1,15 @@
 import aarondb/fact
 import aarondb/sharded
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import aarondb/storage
 import gleam/list
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleeunit/should
 
 pub fn sharded_hnsw_test() {
   // 1. Start sharded DB with 2 shards
   let assert Ok(db) =
-    sharded.start_sharded("hnsw_cluster", 2, Some(storage.ephemeral()))
+    sharded.start_local_sharded("hnsw_cluster", 2, Some(storage.ephemeral()))
 
   // 2. Insert vectors into different shards using fact.Uid
   let facts = [
@@ -20,11 +20,19 @@ pub fn sharded_hnsw_test() {
   let assert Ok(_) = sharded.transact(db, facts)
 
   // 3. Similarity Search across shards
-  // Similarity(variable: String, vector: List(Float), threshold: Float)
-  let query_clause = types.Similarity("v", [0.9, 0.1, 0.0], 0.8)
-  let results = sharded.query(db, [query_clause])
+  let query_clause =
+    types.Similarity("v", types.Val(fact.Vec([0.9, 0.1, 0.0])), 0.8)
+  let q =
+    types.Query(
+      find: ["v"],
+      where: [query_clause],
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  let results = sharded.query(db, q)
 
-  // Should find the vector [1.0, 0.0, 0.0] from Shard 0 (or 1 depending on hash)
+  // Should find the vector [1.0, 0.0, 0.0]
   list.length(results.rows) |> should.equal(1)
 
   sharded.stop(db)

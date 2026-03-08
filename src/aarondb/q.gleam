@@ -1,60 +1,84 @@
 import aarondb/fact
-import aarondb/shared/types.{type BodyClause, Negative, Positive, Val, Var}
+import aarondb/shared/ast.{
+  type BodyClause, type Part, Negative, Positive, Val, Var,
+}
 import gleam/list
-import gleam/option
+import gleam/option.{type Option, None, Some}
 
 pub type QueryBuilder {
-  QueryBuilder(clauses: List(BodyClause))
+  QueryBuilder(
+    find: List(String),
+    clauses: List(BodyClause),
+    order_by: Option(ast.OrderBy),
+    limit: Option(Int),
+    offset: Option(Int),
+  )
 }
 
 pub fn new() -> QueryBuilder {
-  QueryBuilder(clauses: [])
+  QueryBuilder(find: [], clauses: [], order_by: None, limit: None, offset: None)
 }
 
-pub fn select(_vars: List(String)) -> QueryBuilder {
-  new()
+pub fn from_clauses(clauses: List(BodyClause)) -> QueryBuilder {
+  QueryBuilder(
+    find: [],
+    clauses: clauses,
+    order_by: None,
+    limit: None,
+    offset: None,
+  )
+}
+
+pub fn select(vars: List(String)) -> QueryBuilder {
+  QueryBuilder(
+    find: vars,
+    clauses: [],
+    order_by: None,
+    limit: None,
+    offset: None,
+  )
 }
 
 /// Helper for string value
-pub fn s(val: String) -> types.Part {
+pub fn s(val: String) -> Part {
   Val(fact.Str(val))
 }
 
 /// Helper for int value
-pub fn i(val: Int) -> types.Part {
+pub fn i(val: Int) -> Part {
   Val(fact.Int(val))
 }
 
 /// Helper for variable
-pub fn v(name: String) -> types.Part {
+pub fn v(name: String) -> Part {
   Var(name)
 }
 
 /// Helper for vector value
-pub fn vec(val: List(Float)) -> types.Part {
+pub fn vec(val: List(Float)) -> Part {
   Val(fact.Vec(val))
 }
 
 /// Add a where clause (Entity, Attribute, Value).
 pub fn where(
   builder: QueryBuilder,
-  entity: types.Part,
+  entity: Part,
   attr: String,
-  value: types.Part,
+  value: Part,
 ) -> QueryBuilder {
   let clause = Positive(#(entity, attr, value))
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Add a negative where clause (Entity, Attribute, Value).
 pub fn negate(
   builder: QueryBuilder,
-  entity: types.Part,
+  entity: Part,
   attr: String,
-  value: types.Part,
+  value: Part,
 ) -> QueryBuilder {
   let clause = Negative(#(entity, attr, value))
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Count aggregate
@@ -64,8 +88,8 @@ pub fn count(
   target: String,
   filter: List(BodyClause),
 ) -> QueryBuilder {
-  let clause = types.Aggregate(into, types.Count, target, filter)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Aggregate(into, ast.Count, Var(target), filter)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Sum aggregate
@@ -75,8 +99,8 @@ pub fn sum(
   target: String,
   filter: List(BodyClause),
 ) -> QueryBuilder {
-  let clause = types.Aggregate(into, types.Sum, target, filter)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Aggregate(into, ast.Sum, Var(target), filter)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Avg aggregate
@@ -86,8 +110,8 @@ pub fn avg(
   target: String,
   filter: List(BodyClause),
 ) -> QueryBuilder {
-  let clause = types.Aggregate(into, types.Avg, target, filter)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Aggregate(into, ast.Avg, Var(target), filter)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Median aggregate
@@ -97,8 +121,8 @@ pub fn median(
   target: String,
   filter: List(BodyClause),
 ) -> QueryBuilder {
-  let clause = types.Aggregate(into, types.Median, target, filter)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Aggregate(into, ast.Median, Var(target), filter)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Min aggregate
@@ -108,8 +132,8 @@ pub fn min(
   target: String,
   filter: List(BodyClause),
 ) -> QueryBuilder {
-  let clause = types.Aggregate(into, types.Min, target, filter)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Aggregate(into, ast.Min, Var(target), filter)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Max aggregate
@@ -119,96 +143,85 @@ pub fn max(
   target: String,
   filter: List(BodyClause),
 ) -> QueryBuilder {
-  let clause = types.Aggregate(into, types.Max, target, filter)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Aggregate(into, ast.Max, Var(target), filter)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Placeholder for similarity search
 pub fn similar(
   builder: QueryBuilder,
-  entity: types.Part,
+  entity: Part,
   attr: String,
   vector: List(Float),
   _threshold: Float,
 ) -> QueryBuilder {
   let clause = Positive(#(entity, attr, Val(fact.Vec(vector))))
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Temporal range query (on Transaction Time)
 pub fn temporal(
   builder: QueryBuilder,
   variable: String,
-  entity: types.Part,
-  attr: String,
+  entity: Part,
+  _attr: String,
   start: Int,
-  end: Int,
+  _end: Int,
 ) -> QueryBuilder {
-  let clause = types.Temporal(variable, entity, attr, start, end, types.Tx)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Temporal(ast.Tx, start, ast.At, variable, entity, [])
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Temporal range query (on Valid Time)
 pub fn valid_temporal(
   builder: QueryBuilder,
   variable: String,
-  entity: types.Part,
-  attr: String,
+  entity: Part,
+  _attr: String,
   start: Int,
-  end: Int,
+  _end: Int,
 ) -> QueryBuilder {
-  let clause = types.Temporal(variable, entity, attr, start, end, types.Valid)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Temporal(ast.Valid, start, ast.At, variable, entity, [])
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Filter results since a specific value (exclusive)
-pub fn since(
-  builder: QueryBuilder,
-  variable: String,
-  val: types.Part,
-) -> QueryBuilder {
-  let clause = types.Filter(types.Gt(types.Var(variable), val))
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+pub fn since(builder: QueryBuilder, variable: String, val: Part) -> QueryBuilder {
+  let clause = ast.Filter(ast.Gt(Var(variable), val))
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Limit results
 pub fn limit(builder: QueryBuilder, n: Int) -> QueryBuilder {
-  let clause = types.Limit(n)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  QueryBuilder(..builder, limit: Some(n))
 }
 
 /// Offset results
 pub fn offset(builder: QueryBuilder, n: Int) -> QueryBuilder {
-  let clause = types.Offset(n)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  QueryBuilder(..builder, offset: Some(n))
 }
 
 /// Order results
 pub fn order_by(
   builder: QueryBuilder,
   variable: String,
-  direction: types.OrderDirection,
+  direction: ast.OrderDirection,
 ) -> QueryBuilder {
-  let clause = types.OrderBy(variable, direction)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
-}
-
-/// Group By (Placeholder/Future)
-pub fn group_by(builder: QueryBuilder, variable: String) -> QueryBuilder {
-  let clause = types.GroupBy(variable)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  QueryBuilder(..builder, order_by: Some(ast.OrderBy(variable, direction)))
 }
 
 /// Find the shortest path between two entities via an edge attribute.
 pub fn shortest_path(
   builder: QueryBuilder,
-  from: types.Part,
-  to: types.Part,
+  from: Part,
+  to: Part,
   edge: String,
   path_var: String,
+  cost_var cost_var: Option(String),
+  max_depth max_depth: Option(Int),
 ) -> QueryBuilder {
-  let clause = types.ShortestPath(from, to, edge, path_var, option.None)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.ShortestPath(from, to, edge, path_var, cost_var, max_depth)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Calculate PageRank for nodes connected by an edge.
@@ -217,31 +230,22 @@ pub fn pagerank(
   entity_var: String,
   edge: String,
   rank_var: String,
+  damping damping: Float,
+  iterations iterations: Int,
 ) -> QueryBuilder {
-  let clause = types.PageRank(entity_var, edge, rank_var, 0.85, 20)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.PageRank(entity_var, edge, rank_var, damping, iterations)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Query an external data source (Virtual Predicate).
 pub fn virtual(
   builder: QueryBuilder,
   predicate: String,
-  args: List(types.Part),
+  args: List(Part),
   outputs: List(String),
 ) -> QueryBuilder {
-  let clause = types.Virtual(predicate, args, outputs)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
-}
-
-/// Find all nodes reachable from a starting node via an edge attribute (transitive closure).
-pub fn reachable(
-  builder: QueryBuilder,
-  from: types.Part,
-  edge: String,
-  node_var: String,
-) -> QueryBuilder {
-  let clause = types.Reachable(from, edge, node_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Virtual(predicate, args, outputs)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Label each node with a connected component ID.
@@ -251,32 +255,31 @@ pub fn connected_components(
   entity_var: String,
   component_var: String,
 ) -> QueryBuilder {
-  let clause = types.ConnectedComponents(edge, entity_var, component_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.ConnectedComponents(edge, entity_var, component_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
+}
+
+/// Find all nodes reachable from a starting node.
+pub fn reachable(
+  builder: QueryBuilder,
+  from: Part,
+  edge: String,
+  node_var: String,
+) -> QueryBuilder {
+  let clause = ast.Reachable(from, edge, node_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Find all nodes within K hops of a starting node.
 pub fn neighbors(
   builder: QueryBuilder,
-  from: types.Part,
+  from: Part,
   edge: String,
   depth: Int,
   node_var: String,
 ) -> QueryBuilder {
-  let clause = types.Neighbors(from, edge, depth, node_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
-}
-
-/// Label each node with its strongly connected component ID (Tarjan's algorithm).
-pub fn strongly_connected_components(
-  builder: QueryBuilder,
-  edge: String,
-  entity_var: String,
-  component_var: String,
-) -> QueryBuilder {
-  let clause =
-    types.StronglyConnectedComponents(edge, entity_var, component_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Neighbors(from, edge, depth, node_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Detect cycles in directed graph. Each result binds a List of entity refs forming a cycle.
@@ -285,8 +288,8 @@ pub fn cycle_detect(
   edge: String,
   cycle_var: String,
 ) -> QueryBuilder {
-  let clause = types.CycleDetect(edge, cycle_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.CycleDetect(edge, cycle_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Calculate betweenness centrality (Brandes' algorithm) for each node.
@@ -296,8 +299,8 @@ pub fn betweenness_centrality(
   entity_var: String,
   score_var: String,
 ) -> QueryBuilder {
-  let clause = types.BetweennessCentrality(edge, entity_var, score_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.BetweennessCentrality(edge, entity_var, score_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Topological ordering of a DAG. Returns empty if cycles exist.
@@ -307,40 +310,52 @@ pub fn topological_sort(
   entity_var: String,
   order_var: String,
 ) -> QueryBuilder {
-  let clause = types.TopologicalSort(edge, entity_var, order_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.TopologicalSort(edge, entity_var, order_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Generic filter expression.
-pub fn filter(builder: QueryBuilder, expr: types.Expression) -> QueryBuilder {
-  let clause = types.Filter(expr)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+pub fn filter(builder: QueryBuilder, expr: ast.Expression) -> QueryBuilder {
+  let clause = ast.Filter(expr)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Pull attributes for an entity into a variable.
 pub fn pull(
   builder: QueryBuilder,
   variable: String,
-  entity: types.Part,
-  pattern: types.PullPattern,
+  entity: Part,
+  pattern: ast.PullPattern,
 ) -> QueryBuilder {
-  let clause = types.Pull(variable, entity, pattern)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Pull(variable, entity, pattern)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
 /// Semantic cognitive search using ACT-R Decay and Hebbian weights
 pub fn cognitive(
   builder: QueryBuilder,
-  concept: types.Part,
-  context: types.Part,
+  concept: Part,
+  context: Part,
   threshold: Float,
   engram_var: String,
 ) -> QueryBuilder {
-  let clause = types.Cognitive(concept, context, threshold, engram_var)
-  QueryBuilder(clauses: list.append(builder.clauses, [clause]))
+  let clause = ast.Cognitive(concept, context, threshold, engram_var)
+  QueryBuilder(..builder, clauses: list.append(builder.clauses, [clause]))
 }
 
-/// Convert builder to a list of clauses for `aarondb.query`.
+/// Convert builder to a list of clauses for backwards compatibility.
+/// NOTE: This will lose find/limit/offset/order info.
 pub fn to_clauses(builder: QueryBuilder) -> List(BodyClause) {
   builder.clauses
+}
+
+/// Convert builder to a full Query AST.
+pub fn to_query(builder: QueryBuilder) -> ast.Query {
+  ast.Query(
+    find: builder.find,
+    where: builder.clauses,
+    order_by: builder.order_by,
+    limit: builder.limit,
+    offset: builder.offset,
+  )
 }

@@ -1,6 +1,6 @@
 import aarondb
 import aarondb/fact
-import aarondb/shared/types
+import aarondb/shared/state as types
 import aarondb/transactor
 import gleam/erlang/process
 import gleam/list

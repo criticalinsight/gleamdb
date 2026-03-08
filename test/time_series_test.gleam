@@ -1,7 +1,7 @@
 import aarondb
 import aarondb/fact
 import aarondb/q
-import aarondb/shared/types
+import aarondb/shared/ast
 import gleam/dict
 import gleam/int
 import gleam/list
@@ -45,11 +45,10 @@ pub fn temporal_pagination_test() {
   // Let's query 50 to 60.
 
   let result =
-    aarondb.query(
+    aarondb.q(
       db,
       q.new()
-        |> q.temporal("val", q.i(1), "tick/price", 50, 60)
-        |> q.to_clauses,
+        |> q.temporal("val", q.i(1), "tick/price", 50, 60),
     )
 
   let values =
@@ -82,13 +81,12 @@ pub fn limit_offset_order_test() {
 
   // Query: Select all, Order DESC, Limit 3
   let result =
-    aarondb.query(
+    aarondb.q(
       db,
       q.new()
         |> q.where(q.i(2), "val", q.v("x"))
-        |> q.order_by("x", types.Desc)
-        |> q.limit(3)
-        |> q.to_clauses,
+        |> q.order_by("x", ast.Desc)
+        |> q.limit(3),
     )
 
   let values =
@@ -101,14 +99,13 @@ pub fn limit_offset_order_test() {
 
   // Query: Offset 2, Limit 2 with Ascending Order
   let result_offset =
-    aarondb.query(
+    aarondb.q(
       db,
       q.new()
         |> q.where(q.i(2), "val", q.v("x"))
-        |> q.order_by("x", types.Asc)
+        |> q.order_by("x", ast.Asc)
         |> q.offset(2)
-        |> q.limit(2)
-        |> q.to_clauses,
+        |> q.limit(2),
     )
 
   let values_offset =
@@ -140,11 +137,10 @@ pub fn aggregate_test() {
     |> q.to_clauses
 
   let result =
-    aarondb.query(
+    aarondb.q(
       db,
       q.new()
-        |> q.avg("avg_val", "s", filter)
-        |> q.to_clauses,
+        |> q.avg("avg_val", "s", filter),
     )
 
   let assert Ok(row) = list.first(result.rows)

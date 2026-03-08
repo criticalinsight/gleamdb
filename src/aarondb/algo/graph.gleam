@@ -1,6 +1,6 @@
 import aarondb/fact.{type EntityId, Ref}
 import aarondb/index
-import aarondb/shared/types.{type DbState}
+import aarondb/shared/state
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
@@ -33,58 +33,78 @@ fn pop_queue(q: Queue(a)) -> Result(#(a, Queue(a)), Nil) {
 }
 
 pub fn shortest_path(
-  state: DbState,
+  state: state.DbState,
   from: EntityId,
   to: EntityId,
   edge_attr: String,
+  max_depth: Option(Int),
 ) -> Option(List(EntityId)) {
   bfs(
     state,
     edge_attr,
     to,
-    new_queue() |> push_queue(from),
+    new_queue() |> push_queue(#(from, 0)),
     set.new(),
     dict.new(),
+    max_depth,
   )
 }
 
 fn bfs(
-  state: DbState,
+  state: state.DbState,
   attr: String,
   target: EntityId,
-  q: Queue(EntityId),
+  q: Queue(#(EntityId, Int)),
   visited: Set(EntityId),
   parents: Dict(EntityId, EntityId),
+  max_depth: Option(Int),
 ) -> Option(List(EntityId)) {
   case pop_queue(q) {
     Error(_) -> None
     // Queue empty, not found
-    Ok(#(current, new_q)) -> {
+    Ok(#(#(current, depth), new_q)) -> {
       case current == target {
         True -> Some(reconstruct_path(target, parents, []))
         False -> {
-          // Get neighbors
-          let neighbors = get_neighbors(state, current, attr)
+          let at_max = case max_depth {
+            Some(max) -> depth >= max
+            None -> False
+          }
+          case at_max {
+            True -> bfs(state, attr, target, new_q, visited, parents, max_depth)
+            False -> {
+              // Get neighbors
+              let neighbors = get_neighbors(state, current, attr)
 
-          // Filter unvisited
-          let new_neighbors =
-            list.filter(neighbors, fn(n) { !set.contains(visited, n) })
+              // Filter unvisited
+              let new_neighbors =
+                list.filter(neighbors, fn(n) { !set.contains(visited, n) })
 
-          // Update visited and parents
-          let new_visited =
-            list.fold(new_neighbors, visited, fn(s, n) { set.insert(s, n) })
-          let new_parents =
-            list.fold(new_neighbors, parents, fn(p, n) {
-              dict.insert(p, n, current)
-            })
+              // Update visited and parents
+              let new_visited =
+                list.fold(new_neighbors, visited, fn(s, n) { set.insert(s, n) })
+              let new_parents =
+                list.fold(new_neighbors, parents, fn(p, n) {
+                  dict.insert(p, n, current)
+                })
 
-          // Enqueue
-          let next_q =
-            list.fold(new_neighbors, new_q, fn(q_acc, n) {
-              push_queue(q_acc, n)
-            })
+              // Enqueue
+              let next_q =
+                list.fold(new_neighbors, new_q, fn(q_acc, n) {
+                  push_queue(q_acc, #(n, depth + 1))
+                })
 
-          bfs(state, attr, target, next_q, new_visited, new_parents)
+              bfs(
+                state,
+                attr,
+                target,
+                next_q,
+                new_visited,
+                new_parents,
+                max_depth,
+              )
+            }
+          }
         }
       }
     }
@@ -92,7 +112,7 @@ fn bfs(
 }
 
 fn get_neighbors(
-  state: DbState,
+  state: state.DbState,
   entity: EntityId,
   attr: String,
 ) -> List(EntityId) {
@@ -119,7 +139,7 @@ fn reconstruct_path(
 }
 
 pub fn pagerank(
-  state: DbState,
+  state: state.DbState,
   attr: String,
   damping: Float,
   iterations: Int,
@@ -153,7 +173,7 @@ pub fn pagerank(
 type Graph =
   Dict(EntityId, List(EntityId))
 
-fn build_graph(state: DbState, attr: String) -> Graph {
+fn build_graph(state: state.DbState, attr: String) -> Graph {
   index.filter_by_attribute(state.aevt, attr)
   |> list.fold(dict.new(), fn(graph, d) {
     case d.value {
@@ -226,7 +246,7 @@ fn preprocess_graph(
 // --- Reachable: All nodes reachable from a starting node (transitive closure) ---
 
 pub fn reachable(
-  state: DbState,
+  state: state.DbState,
   from: EntityId,
   edge_attr: String,
 ) -> List(EntityId) {
@@ -240,7 +260,7 @@ pub fn reachable(
 }
 
 fn reachable_bfs(
-  state: DbState,
+  state: state.DbState,
   attr: String,
   q: Queue(EntityId),
   visited: Set(EntityId),
@@ -261,7 +281,7 @@ fn reachable_bfs(
 // --- ConnectedComponents: Label each node with a component ID ---
 
 pub fn connected_components(
-  state: DbState,
+  state: state.DbState,
   edge_attr: String,
 ) -> Dict(EntityId, Int) {
   let graph = build_graph(state, edge_attr)
@@ -270,7 +290,7 @@ pub fn connected_components(
 }
 
 fn cc_flood(
-  state: DbState,
+  state: state.DbState,
   attr: String,
   remaining: List(EntityId),
   visited: Set(EntityId),
@@ -300,7 +320,7 @@ fn cc_flood(
 // --- Neighbors: K-hop neighborhood (bounded BFS) ---
 
 pub fn neighbors_khop(
-  state: DbState,
+  state: state.DbState,
   from: EntityId,
   edge_attr: String,
   max_depth: Int,
@@ -312,7 +332,7 @@ pub fn neighbors_khop(
 }
 
 fn khop_bfs(
-  state: DbState,
+  state: state.DbState,
   attr: String,
   frontier: List(#(EntityId, Int)),
   visited: Set(EntityId),
@@ -341,7 +361,10 @@ fn khop_bfs(
 
 // --- CycleDetect: Find all cycles in a directed graph (DFS back-edge) ---
 
-pub fn cycle_detect(state: DbState, edge_attr: String) -> List(List(EntityId)) {
+pub fn cycle_detect(
+  state: state.DbState,
+  edge_attr: String,
+) -> List(List(EntityId)) {
   let graph = build_graph(state, edge_attr)
   let all_nodes = get_all_nodes(graph)
   let node_list = set.to_list(all_nodes)
@@ -429,7 +452,7 @@ fn extract_cycle_loop(
 // --- BetweennessCentrality: Brandes' algorithm O(V*E) ---
 
 pub fn betweenness_centrality(
-  state: DbState,
+  state: state.DbState,
   edge_attr: String,
 ) -> Dict(EntityId, Float) {
   let graph = build_graph(state, edge_attr)
@@ -554,7 +577,7 @@ fn bc_bfs_loop(
 // --- TopologicalSort: Kahn's algorithm (BFS-based) ---
 
 pub fn topological_sort(
-  state: DbState,
+  state: state.DbState,
   edge_attr: String,
 ) -> Result(List(EntityId), List(EntityId)) {
   // Returns Ok(ordered) if DAG, Error(cycle_nodes) if cycles exist
@@ -648,7 +671,7 @@ pub type TarjanState {
 }
 
 pub fn strongly_connected_components(
-  state: DbState,
+  state: state.DbState,
   edge_attr: String,
 ) -> Dict(EntityId, Int) {
   let graph = build_graph(state, edge_attr)

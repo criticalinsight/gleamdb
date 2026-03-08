@@ -1,7 +1,7 @@
 import aarondb
 import aarondb/fact
 import aarondb/q
-import aarondb/shared/types.{Delta, Initial}
+import aarondb/shared/query_types
 import gleam/erlang/process
 import gleam/io
 import gleam/list
@@ -28,7 +28,7 @@ pub fn reactive_delta_test() {
     q.select(["msg"])
     |> q.where(q.v("e"), "chat/id", q.i(100))
     |> q.where(q.v("e"), "chat/msg", q.v("msg"))
-    |> q.to_clauses()
+    |> q.to_query()
 
   let subject = process.new_subject()
   aarondb.subscribe(db, query, subject)
@@ -36,7 +36,7 @@ pub fn reactive_delta_test() {
   // 3. Assert Initial State
   let assert Ok(msg) = process.receive(subject, 1000)
   case msg {
-    Initial(results) -> {
+    query_types.Initial(results) -> {
       should.equal(list.length(results.rows), 1)
     }
     _ -> should.fail()
@@ -52,7 +52,7 @@ pub fn reactive_delta_test() {
   // 5. Assert Delta (Added)
   let assert Ok(msg2) = process.receive(subject, 1000)
   case msg2 {
-    Delta(added, removed) -> {
+    query_types.Delta(added, removed) -> {
       should.equal(list.length(added.rows), 1)
       should.equal(list.length(removed.rows), 0)
       io.println("Received Delta Added")
@@ -61,10 +61,6 @@ pub fn reactive_delta_test() {
   }
 
   // 6. Retract Item
-  // Note: Retract by entity ID or value?
-  // We'll use retract API if available, or just use fact-based retraction if implemented?
-  // AaronDB doesn't have `retract_entity` helper exposed yet?
-  // `aarondb.retract` takes List(Fact).
   let assert Ok(_) =
     aarondb.retract(db, [
       #(fact.Uid(fact.EntityId(2)), "chat/msg", fact.Str("World")),
@@ -73,7 +69,7 @@ pub fn reactive_delta_test() {
   // 7. Assert Delta (Removed)
   let assert Ok(msg3) = process.receive(subject, 1000)
   case msg3 {
-    Delta(added, removed) -> {
+    query_types.Delta(added, removed) -> {
       should.equal(list.length(added.rows), 0)
       should.equal(list.length(removed.rows), 1)
       io.println("Received Delta Removed")

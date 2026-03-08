@@ -1,18 +1,17 @@
 import aarondb
 import aarondb/fact
 import aarondb/q
-import aarondb/shared/types
+import aarondb/shared/state
 import gleam/erlang/process
 import gleam/int
-import gleam/io
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{None}
 import gleeunit/should
 
 pub fn disk_spilling_test() {
   // 1. Initialize DB with small memory limit to force spilling
   let config =
-    types.Config(
+    state.Config(
       parallel_threshold: 1000,
       batch_size: 1,
       // Any tx older than 1 is eligible for eviction
@@ -41,7 +40,7 @@ pub fn disk_spilling_test() {
   // Let's transact 3 separate batches to ensure `Tick` triggers eviction of older tx.
   let ingest_batch = fn(start, end) {
     let data =
-      list.range(start, end)
+      int.range(from: start, to: end + 1, with: [], run: fn(acc, i) { [i, ..acc] })
       |> list.map(fn(i) {
         #(
           fact.deterministic_uid(i),

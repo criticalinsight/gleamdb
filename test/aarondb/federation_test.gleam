@@ -1,9 +1,10 @@
-import aarondb/engine
+import aarondb
 import aarondb/fact.{Int, Str}
 import aarondb/index/art
 import aarondb/q
 import aarondb/raft
-import aarondb/shared/types
+import aarondb/shared/ast as types
+import aarondb/shared/state
 import aarondb/storage
 import aarondb/vec_index
 import gleam/dict
@@ -25,7 +26,7 @@ pub fn virtual_predicate_test() {
   }
 
   let db_state =
-    types.DbState(
+    state.DbState(
       adapter: storage.ephemeral(),
       eavt: dict.new(),
       aevt: dict.new(),
@@ -49,7 +50,7 @@ pub fn virtual_predicate_test() {
       stored_rules: [],
       virtual_predicates: dict.from_list([#("users_csv", users_csv)]),
       columnar_store: dict.new(),
-      config: types.Config(
+      config: state.Config(
         parallel_threshold: 500,
         batch_size: 100,
         prefetch_enabled: False,
@@ -66,7 +67,7 @@ pub fn virtual_predicate_test() {
     |> q.filter(types.Gt(types.Var("age"), types.Val(Int(28))))
     |> q.to_clauses()
 
-  let results = engine.run(db_state, clauses, [], None, None)
+  let results = aarondb.query_state(db_state, clauses)
 
   should.equal(list.length(results.rows), 1)
   let assert [row] = results.rows

@@ -1,7 +1,7 @@
 import aarondb
 import aarondb/fact
 import aarondb/q
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import aarondb/shared/utils
 import gleam/dict
 import gleam/int
@@ -19,7 +19,7 @@ pub fn ordered_sequence_test() {
     #(fact.Uid(fact.EntityId(1)), "order", fact.Int(3)),
   ]
 
-  let assert Ok(state) = aarondb.transact(db, facts)
+  let assert Ok(_state) = aarondb.transact(db, facts)
 
   // Verify tx_index is assigned correctly
   let history =

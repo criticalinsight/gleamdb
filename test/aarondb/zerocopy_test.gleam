@@ -1,14 +1,14 @@
 import aarondb
 import aarondb/fact
 import aarondb/index/ets as ets_index
-import aarondb/shared/types
-import gleam/list
-import gleam/option.{None, Some}
+import aarondb/shared/query_types.{PullRawBinary}
+import aarondb/shared/state
+import gleam/option.{None}
 import gleeunit/should
 
 pub fn zerocopy_binary_test() {
   let config =
-    types.Config(
+    state.Config(
       parallel_threshold: 1000,
       batch_size: 100,
       prefetch_enabled: False,
@@ -46,7 +46,7 @@ pub fn zerocopy_binary_test() {
   let res = aarondb.pull(db, fact.Uid(fact.EntityId(100)), aarondb.pull_all())
 
   case res {
-    types.PullRawBinary(bin) -> {
+    PullRawBinary(bin) -> {
       // Assert that we successfully got a raw C-level payload
       let _dyn = ets_index.deserialize_term(bin)
       // If we reach here, it deserialized without crashing via erlang term_to_binary validation

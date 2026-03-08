@@ -1,6 +1,7 @@
 import aarondb
 import aarondb/fact
-import aarondb/shared/types.{And, Eq, Filter, Gt, Or, Positive, Val, Var}
+import aarondb/shared/ast.{And, Eq, Filter, Gt, Or, Positive, Val, Var}
+import gleam/int
 import gleam/list
 import gleeunit/should
 
@@ -9,7 +10,7 @@ pub fn jit_lite_complex_filter_test() {
 
   // Ingest data
   let data =
-    list.range(1, 100)
+    int.range(from: 1, to: 101, with: [], run: fn(acc, i) { [i, ..acc] })
     |> list.flat_map(fn(i) {
       let eid = fact.deterministic_uid(i)
       [

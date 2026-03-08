@@ -1,7 +1,7 @@
 import aarondb
 import aarondb/fact
 import aarondb/sharded
-import aarondb/shared/types
+import aarondb/shared/ast
 import gleam/dict
 import gleam/erlang/process
 import gleam/list
@@ -10,7 +10,7 @@ import gleeunit/should
 
 pub fn sharded_idempotency_test() {
   let cluster_id = "test_sharded_identity"
-  let assert Ok(db) = sharded.start_sharded(cluster_id, 4, None)
+  let assert Ok(db) = sharded.start_local_sharded(cluster_id, 4, None)
 
   // 1. Create a deterministic fact
   let data = "market_123"
@@ -22,9 +22,16 @@ pub fn sharded_idempotency_test() {
   let assert Ok(_) = sharded.transact(db, [f1])
 
   // 3. Query - should only see ONE entity with this ID across the cluster
-  let q = [
-    aarondb.p(#(types.Var("e"), "test/status", types.Val(fact.Str("Active")))),
-  ]
+  let q =
+    ast.Query(
+      find: ["e"],
+      where: [
+        aarondb.p(#(ast.Var("e"), "test/status", ast.Val(fact.Str("Active")))),
+      ],
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
   let results = sharded.query(db, q)
 
   list.length(results.rows) |> should.equal(1)
@@ -35,7 +42,7 @@ pub fn sharded_idempotency_test() {
 pub fn sharded_scaling_test() {
   let cluster_id = "test_sharded_scaling"
   // Parallelize across 8 shards
-  let assert Ok(db) = sharded.start_sharded(cluster_id, 8, None)
+  let assert Ok(db) = sharded.start_local_sharded(cluster_id, 8, None)
 
   // Ingest data into different shards
   let facts = [
@@ -48,8 +55,15 @@ pub fn sharded_scaling_test() {
   let assert Ok(_) = sharded.transact(db, facts)
 
   // Verify unified query
-  let results =
-    sharded.query(db, [aarondb.p(#(types.Var("e"), "val", types.Var("v")))])
+  let q =
+    ast.Query(
+      find: ["e", "v"],
+      where: [aarondb.p(#(ast.Var("e"), "val", ast.Var("v")))],
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  let results = sharded.query(db, q)
   list.length(results.rows) |> should.equal(4)
 
   let _ = sharded.stop(db)
@@ -57,13 +71,13 @@ pub fn sharded_scaling_test() {
 
 pub fn sharded_edge_cases_test() {
   let cluster_id = "test_sharded_edge"
-  let assert Ok(db) = sharded.start_sharded(cluster_id, 2, None)
+  let assert Ok(db) = sharded.start_local_sharded(cluster_id, 2, None)
 
   // 1. Empty transaction
   let assert Ok([]) = sharded.transact(db, [])
 
   // 2. Single shard cluster (modulo 1)
-  let assert Ok(db1) = sharded.start_sharded(cluster_id <> "_1", 1, None)
+  let assert Ok(db1) = sharded.start_local_sharded(cluster_id <> "_1", 1, None)
   let f = #(fact.deterministic_uid("x"), "a", fact.Int(1))
   let assert Ok(_) = sharded.transact(db1, [f])
   let _ = sharded.stop(db1)
@@ -84,7 +98,7 @@ pub fn sharded_edge_cases_test() {
 
 pub fn sharded_stop_cleanup_test() {
   let cluster_id = "test_sharded_stop"
-  let assert Ok(db) = sharded.start_sharded(cluster_id, 2, None)
+  let assert Ok(db) = sharded.start_local_sharded(cluster_id, 2, None)
 
   let shard_pids =
     list.map(dict.to_list(db.shards), fn(pair) {

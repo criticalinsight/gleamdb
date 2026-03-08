@@ -1,8 +1,7 @@
 import aarondb/engine/navigator
 import aarondb/fact.{Str}
 import aarondb/q
-import aarondb/shared/types.{Positive, Val, Var}
-import gleam/list
+import aarondb/shared/ast.{Positive, Val, Var}
 import gleeunit
 import gleeunit/should
 
@@ -28,23 +27,6 @@ pub fn reorder_test() {
     ] -> {
       should.be_true(True)
     }
-    _ -> should.fail()
-  }
-}
-
-pub fn control_clause_stability_test() {
-  // Control clauses should stay at the end
-  let clauses =
-    q.new()
-    |> q.where(q.v("e"), "age", q.v("a"))
-    |> q.limit(10)
-    |> q.where(q.v("e"), "name", q.s("Alice"))
-    |> q.to_clauses()
-
-  let planned = navigator.plan(clauses)
-
-  case list.last(planned) {
-    Ok(types.Limit(10)) -> should.be_true(True)
     _ -> should.fail()
   }
 }

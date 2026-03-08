@@ -4,11 +4,11 @@ import aarondb/global
 import aarondb/index
 import aarondb/index/ets
 import aarondb/process_extra
+import aarondb/q.{type QueryBuilder}
 import aarondb/raft
-import aarondb/shared/types.{
-  type BodyClause, type DbState, type QueryResult, Attr, Except, Positive,
-  Recursion, Subscribe, Wildcard,
-}
+import aarondb/shared/ast
+import aarondb/shared/query_types
+import aarondb/shared/state
 import aarondb/storage.{type StorageAdapter}
 import aarondb/transactor
 import gleam/erlang/process.{type Subject}
@@ -22,10 +22,25 @@ pub type Db =
   transactor.Db
 
 pub type PullResult =
-  types.PullResult
+  query_types.PullResult
 
 pub type PullPattern =
-  types.PullPattern
+  ast.PullPattern
+
+pub type DbState =
+  state.DbState
+
+pub type QueryResult =
+  query_types.QueryResult
+
+pub type BodyClause =
+  ast.BodyClause
+
+pub type SpeculativeResult {
+  SpeculativeResult(state: state.DbState, datoms: List(fact.Datom))
+}
+
+import gleam/dynamic.{type Dynamic}
 
 pub fn new() -> Db {
   new_with_adapter(None)
@@ -157,15 +172,13 @@ pub fn retract_entity(db: Db, eid: fact.Eid) -> Result(DbState, String) {
 pub fn with_facts(
   state: DbState,
   facts: List(Fact),
-) -> Result(types.SpeculativeResult, String) {
+) -> Result(SpeculativeResult, String) {
   transactor.compute_next_state(state, facts, None, fact.Assert)
-  |> result.map(fn(res) { types.SpeculativeResult(state: res.0, datoms: res.1) })
+  |> result.map(fn(res) { SpeculativeResult(state: res.0, datoms: res.1) })
 }
 
 /// Provides a human-readable explanation of a speculative result or failure.
-pub fn explain_speculation(
-  res: Result(types.SpeculativeResult, String),
-) -> String {
+pub fn explain_speculation(res: Result(SpeculativeResult, String)) -> String {
   case res {
     Ok(s) ->
       "Speculation successful: "
@@ -229,15 +242,15 @@ pub fn history(db: Db, eid: fact.Eid) -> List(fact.Datom) {
   }
   case state.ets_name {
     Some(name) -> ets.lookup_datoms(name <> "_eavt", id)
-    None -> engine.entity_history(state, id)
+    None -> index.get_datoms_by_entity(state.eavt, id)
   }
 }
 
 fn extract_pull_attributes(pattern: PullPattern) -> List(String) {
   list.fold(pattern, [], fn(acc, p) {
     case p {
-      types.Attr(a) -> [a, ..acc]
-      types.Nested(a, inner) -> [
+      ast.Attr(a) -> [a, ..acc]
+      ast.Nested(a, inner) -> [
         a,
         ..list.append(extract_pull_attributes(inner), acc)
       ]
@@ -252,7 +265,7 @@ pub fn pull(db: Db, eid: fact.Eid, pattern: PullPattern) -> PullResult {
     True -> {
       let attrs = extract_pull_attributes(pattern)
       let ctx =
-        types.QueryContext(attributes: attrs, entities: [], timestamp: 0)
+        state.QueryContext(attributes: attrs, entities: [], timestamp: 0)
       transactor.log_query(db, ctx)
     }
     False -> Nil
@@ -264,24 +277,7 @@ pub fn pull(db: Db, eid: fact.Eid, pattern: PullPattern) -> PullResult {
       |> result.unwrap(fact.EntityId(0))
     }
   }
-  engine.pull(state, fact.Uid(id), pattern)
-}
-
-pub fn traverse(
-  db: Db,
-  eid: fact.Eid,
-  expr: types.TraversalExpr,
-  max_depth: Int,
-) -> Result(List(fact.Value), String) {
-  let state = transactor.get_state(db)
-  let fact.EntityId(id_int) = case eid {
-    fact.Uid(i) -> i
-    fact.Lookup(#(a, v)) -> {
-      index.get_entity_by_av(state.avet, a, v)
-      |> result.unwrap(fact.EntityId(0))
-    }
-  }
-  engine.traverse(state, id_int, expr, max_depth)
+  engine.pull(state, id, pattern)
 }
 
 pub fn diff(db: Db, from_tx: Int, to_tx: Int) -> List(fact.Datom) {
@@ -290,33 +286,38 @@ pub fn diff(db: Db, from_tx: Int, to_tx: Int) -> List(fact.Datom) {
 }
 
 pub fn pull_all() -> PullPattern {
-  [Wildcard]
+  [ast.Wildcard]
 }
 
 pub fn pull_attr(attr: String) -> PullPattern {
-  [Attr(attr)]
+  [ast.Attr(attr)]
 }
 
 pub fn pull_except(exclusions: List(String)) -> PullPattern {
-  [Except(exclusions)]
+  [ast.Except(exclusions)]
 }
 
 pub fn pull_recursive(attr: String, depth: Int) -> PullPattern {
-  [Recursion(attr, depth)]
+  [ast.PullRecursion(attr, depth)]
 }
 
 pub fn query(db: Db, q_clauses: List(BodyClause)) -> QueryResult {
-  query_at(db, q_clauses, None, None)
+  let state = transactor.get_state(db)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, [], None, None)
 }
 
-fn extract_query_attributes(clauses: List(BodyClause)) -> List(String) {
-  list.fold(clauses, [], fn(acc, c) {
-    case c {
-      types.Positive(#(_, attr, _)) -> [attr, ..acc]
-      types.Negative(#(_, attr, _)) -> [attr, ..acc]
-      _ -> acc
-    }
-  })
+pub fn q(db: Db, q_builder: QueryBuilder) -> QueryResult {
+  let state = transactor.get_state(db)
+  let q = q.to_query(q_builder)
+  engine.run(state, q, [], None, None)
 }
 
 pub fn query_at(
@@ -326,20 +327,27 @@ pub fn query_at(
   as_of_valid: Option(Int),
 ) -> QueryResult {
   let state = transactor.get_state(db)
-  case state.config.prefetch_enabled {
-    True -> {
-      let attrs = extract_query_attributes(q_clauses)
-      let ctx =
-        types.QueryContext(attributes: attrs, entities: [], timestamp: 0)
-      transactor.log_query(db, ctx)
-    }
-    False -> Nil
-  }
-  engine.run(state, q_clauses, state.stored_rules, as_of_tx, as_of_valid)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, state.stored_rules, as_of_tx, as_of_valid)
 }
 
 pub fn query_state(state: DbState, q_clauses: List(BodyClause)) -> QueryResult {
-  query_state_at(state, q_clauses, None, None)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, [], None, None)
 }
 
 pub fn query_state_at(
@@ -348,33 +356,66 @@ pub fn query_state_at(
   as_of_tx: Option(Int),
   as_of_valid: Option(Int),
 ) -> QueryResult {
-  engine.run(state, q_clauses, [], as_of_tx, as_of_valid)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, [], as_of_tx, as_of_valid)
+}
+
+pub fn execute(db: Db, query: ast.Query) -> QueryResult {
+  let state = transactor.get_state(db)
+  engine.run(state, query, [], None, None)
 }
 
 pub fn query_state_with_rules(
   state: DbState,
   q_clauses: List(BodyClause),
-  rules: List(types.Rule),
+  rules: List(ast.Rule),
 ) -> QueryResult {
-  engine.run(state, q_clauses, rules, None, None)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, rules, None, None)
 }
 
 pub fn query_with_rules(
   db: Db,
   q_clauses: List(BodyClause),
-  rules: List(types.Rule),
+  rules: List(ast.Rule),
 ) -> QueryResult {
   let state = transactor.get_state(db)
-  engine.run(state, q_clauses, rules, None, None)
-}
-
-pub fn explain(q_clauses: List(BodyClause)) -> String {
-  engine.explain(q_clauses)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, rules, None, None)
 }
 
 pub fn as_of(db: Db, tx: Int, q_clauses: List(BodyClause)) -> QueryResult {
   let state = transactor.get_state(db)
-  engine.run(state, q_clauses, state.stored_rules, Some(tx), None)
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, state.stored_rules, Some(tx), None)
 }
 
 pub fn as_of_valid(
@@ -383,7 +424,15 @@ pub fn as_of_valid(
   q_clauses: List(BodyClause),
 ) -> QueryResult {
   let state = transactor.get_state(db)
-  engine.run(state, q_clauses, state.stored_rules, None, Some(valid_time))
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, state.stored_rules, None, Some(valid_time))
 }
 
 pub fn as_of_bitemporal(
@@ -393,17 +442,25 @@ pub fn as_of_bitemporal(
   q_clauses: List(BodyClause),
 ) -> QueryResult {
   let state = transactor.get_state(db)
-  engine.run(state, q_clauses, state.stored_rules, Some(tx), Some(valid_time))
+  let q =
+    ast.Query(
+      find: [],
+      where: q_clauses,
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
+  engine.run(state, q, state.stored_rules, Some(tx), Some(valid_time))
 }
 
-pub fn p(triple: types.Clause) -> BodyClause {
-  Positive(triple)
+pub fn p(triple: ast.Clause) -> BodyClause {
+  ast.Positive(triple)
 }
 
 pub fn register_function(
   db: Db,
   name: String,
-  func: fact.DbFunction(types.DbState),
+  func: fact.DbFunction(state.DbState),
 ) -> Nil {
   transactor.register_function(db, name, func)
 }
@@ -420,34 +477,34 @@ pub fn register_predicate(
   transactor.register_predicate(db, name, pred)
 }
 
-pub fn store_rule(db: Db, rule: types.Rule) -> Result(Nil, String) {
+pub fn store_rule(db: Db, rule: ast.Rule) -> Result(Nil, String) {
   transactor.store_rule(db, rule)
 }
 
-pub fn set_config(db: Db, config: types.Config) -> Nil {
+pub fn set_config(db: Db, config: state.Config) -> Nil {
   transactor.set_config(db, config)
 }
 
 pub fn subscribe(
   db: Db,
-  query: List(BodyClause),
-  subscriber: Subject(types.ReactiveDelta),
+  query: ast.Query,
+  subscriber: Subject(query_types.ReactiveDelta),
 ) -> Nil {
   let state = transactor.get_state(db)
   let results = engine.run(state, query, [], None, None)
 
   let attrs =
-    list.filter_map(query, fn(c) {
+    list.filter_map(query.where, fn(c) {
       case c {
-        Positive(#(_, a, _)) -> Ok(a)
-        types.Negative(#(_, a, _)) -> Ok(a)
+        ast.Positive(#(_, a, _)) -> Ok(a)
+        ast.Negative(#(_, a, _)) -> Ok(a)
         _ -> Error(Nil)
       }
     })
 
-  let msg = Subscribe(query, attrs, subscriber, results)
+  let msg = state.Subscribe(query, attrs, subscriber, results)
   process.send(state.reactive_actor, msg)
-  process.send(subscriber, types.Initial(results))
+  process.send(subscriber, query_types.Initial(results))
   Nil
 }
 
@@ -469,4 +526,31 @@ pub fn sync(db: Db) -> Nil {
 pub fn is_leader(db: Db) -> Bool {
   let state = transactor.get_state(db)
   raft.is_leader(state.raft_state)
+}
+
+pub fn traverse(
+  db: Db,
+  eid: fact.Eid,
+  path: List(ast.Step),
+  max_depth: Int,
+) -> Result(List(fact.Value), String) {
+  let state = transactor.get_state(db)
+  let id = case eid {
+    fact.Uid(fact.EntityId(i)) -> i
+    fact.Lookup(#(a, v)) -> {
+      index.get_entity_by_av(state.avet, a, v)
+      |> result.unwrap(fact.EntityId(0))
+      |> fact.eid_to_integer
+    }
+  }
+
+  let engine_path =
+    list.map(path, fn(s) {
+      case s {
+        ast.In(a) -> query_types.In(a)
+        ast.Out(a) -> query_types.Out(a)
+      }
+    })
+
+  engine.traverse(state, id, engine_path, max_depth)
 }

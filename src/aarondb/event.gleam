@@ -1,7 +1,8 @@
 import aarondb
 import aarondb/fact.{type Eid, type Value, Int, Ref, Str, Uid}
 import aarondb/q
-import aarondb/shared/types.{type DbState, type ReactiveDelta, Delta, Initial}
+import aarondb/shared/query_types.{type ReactiveDelta, Delta, Initial}
+import aarondb/shared/state.{type DbState}
 import aarondb/transactor.{type Db}
 import gleam/dict
 import gleam/erlang/process.{type Subject}
@@ -42,7 +43,7 @@ pub fn on_event(
     let query =
       q.new()
       |> q.where(q.v("e"), "event/type", q.s(event_type))
-      |> q.to_clauses()
+      |> q.to_query()
 
     aarondb.subscribe(db, query, sub)
 
@@ -75,7 +76,7 @@ fn event_loop(
 }
 
 fn process_results(
-  results: types.QueryResult,
+  results: query_types.QueryResult,
   state: DbState,
   callback: fn(DbState, Eid) -> Nil,
 ) {

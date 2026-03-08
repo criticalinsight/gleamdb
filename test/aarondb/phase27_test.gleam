@@ -1,7 +1,8 @@
 import aarondb
 import aarondb/engine
 import aarondb/fact.{Int, Ref, Str}
-import aarondb/shared/types.{PullMap, PullSingle, Wildcard}
+import aarondb/shared/ast.{Wildcard}
+import aarondb/shared/query_types.{PullMap, PullSingle}
 import gleam/dict
 import gleam/list
 import gleeunit
@@ -26,17 +27,14 @@ pub fn speculative_test() {
   let state2 = spec_res.state
 
   // 3. Verify state2 has both
-  let _res2 = aarondb.pull(db, fact.Uid(fact.EntityId(1)), [Wildcard])
-  // Wait, aarondb.pull takes Db (actor) and calls get_state. 
-  // I need a way to pull from a DbState directly if I want to test speculative states easily via API.
-  // Actually, engine.pull(state, ...) is what I should use.
-
-  let res2 = engine.pull(state2, fact.Uid(fact.EntityId(1)), [Wildcard])
+  // engine.pull takes ast.Part
+  let res2 = engine.pull(state2, fact.EntityId(1), [Wildcard])
   let assert PullMap(m2) = res2
   dict.get(m2, "name") |> should.equal(Ok(PullSingle(Str("Alice"))))
   dict.get(m2, "balance") |> should.equal(Ok(PullSingle(Int(100))))
 
   // 4. Verify original actor state doesn't have it
+  // aarondb.pull takes fact.Eid
   let res1 = aarondb.pull(db, fact.Uid(fact.EntityId(1)), [Wildcard])
   let assert PullMap(m1) = res1
   dict.get(m1, "balance") |> should.equal(Error(Nil))
@@ -72,7 +70,6 @@ pub fn pull_plus_test() {
       #(fact.Uid(alice), "manager", Ref(bob)),
       #(fact.Uid(bob), "name", Str("Bob")),
       #(fact.Uid(bob), "manager", Int(3)),
-      // Charlie as Int
     ])
 
   // 1. Except test
@@ -90,7 +87,6 @@ pub fn pull_plus_test() {
   dict.get(mbob, "name") |> should.equal(Ok(PullSingle(Str("Bob"))))
   // mbob should have charlie (id 3)
   let assert Ok(PullMap(mchar)) = dict.get(mbob, "manager")
-  // mchar should be charlie's wildcard (since Recursion adds Wildcard at the end)
   // Charlie has no data yet, so PullMap([])
   should.equal(mchar, dict.new())
 }

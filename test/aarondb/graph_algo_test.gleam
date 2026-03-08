@@ -6,7 +6,8 @@ import aarondb/index
 import aarondb/index/art
 import aarondb/q
 import aarondb/raft
-import aarondb/shared/types
+import aarondb/shared/ast
+import aarondb/shared/state as types
 import aarondb/storage
 import aarondb/vec_index
 import gleam/dict
@@ -86,10 +87,10 @@ pub fn shortest_path_test() {
   let db_state = types.DbState(..db_state, eavt: eavt)
 
   // Test shortest_path
-  let path = graph.shortest_path(db_state, a, c, "connected")
+  let path = graph.shortest_path(db_state, a, c, "connected", None)
   should.equal(path, Some([a, b, c]))
 
-  let no_path = graph.shortest_path(db_state, c, a, "connected")
+  let no_path = graph.shortest_path(db_state, c, a, "connected", None)
   should.equal(no_path, None)
 }
 
@@ -211,8 +212,8 @@ pub fn graph_query_test() {
     q.new()
     |> q.where(q.v("a"), "name", q.s("A"))
     |> q.where(q.v("c"), "name", q.s("C"))
-    |> q.shortest_path(q.v("a"), q.v("c"), "link", "p")
-    |> q.to_clauses()
+    |> q.shortest_path(q.v("a"), q.v("c"), "link", "p", None, None)
+    |> q.to_query()
 
   let results = engine.run(state, clauses, [], None, None)
   should.equal(list.length(results.rows), 1)
@@ -223,8 +224,8 @@ pub fn graph_query_test() {
   // 2. PageRank Query
   let clauses =
     q.new()
-    |> q.pagerank("node", "link", "rank")
-    |> q.to_clauses()
+    |> q.pagerank("node", "link", "rank", 0.85, 20)
+    |> q.to_query()
 
   let results = engine.run(state, clauses, [], None, None)
   should.equal(list.length(results.rows), 4)
@@ -234,7 +235,7 @@ pub fn graph_query_test() {
     q.new()
     |> q.where(q.v("start"), "name", q.s("A"))
     |> q.reachable(q.v("start"), "link", "reached")
-    |> q.to_clauses()
+    |> q.to_query()
 
   let results = engine.run(state, clauses, [], None, None)
   // A can reach B, C, D (plus itself) — at least 3 non-self
@@ -244,7 +245,7 @@ pub fn graph_query_test() {
   let clauses =
     q.new()
     |> q.connected_components("link", "entity", "component")
-    |> q.to_clauses()
+    |> q.to_query()
 
   let results = engine.run(state, clauses, [], None, None)
   should.equal(list.length(results.rows), 4)
@@ -254,7 +255,7 @@ pub fn graph_query_test() {
     q.new()
     |> q.where(q.v("origin"), "name", q.s("B"))
     |> q.neighbors(q.v("origin"), "link", 1, "neighbor")
-    |> q.to_clauses()
+    |> q.to_query()
 
   let results = engine.run(state, clauses, [], None, None)
   // B's 1-hop neighbors: C, D

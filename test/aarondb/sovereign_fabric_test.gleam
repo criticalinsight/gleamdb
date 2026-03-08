@@ -1,6 +1,7 @@
 import aarondb.{p}
 import aarondb/fact
-import aarondb/shared/types.{Nested, PullMap, PullSingle, Wildcard}
+import aarondb/shared/ast
+import aarondb/shared/query_types.{PullMap, PullSingle}
 import gleam/dict
 import gleam/list
 import gleam/option
@@ -68,7 +69,7 @@ pub fn sovereign_fabric_test() {
     ])
 
   // 3. Verify Pull API (Nested)
-  let pull_pattern = [Nested("user/profile", [Wildcard])]
+  let pull_pattern = [ast.Nested("user/profile", [ast.Wildcard])]
   let result = aarondb.pull(db, fact.Uid(fact.EntityId(1)), pull_pattern)
 
   let assert PullMap(res_map) = result
@@ -88,7 +89,7 @@ pub fn sovereign_fabric_test() {
     ])
 
   // 5. Verify Bi-temporality (as_of)
-  let q = [p(#(types.Var("e"), "user/name", types.Var("name")))]
+  let q = [p(#(ast.Var("e"), "user/name", ast.Var("name")))]
 
   // Current state
   let current_res = aarondb.query(db, q)
@@ -112,7 +113,7 @@ pub fn sovereign_fabric_test() {
   |> should.equal([])
 
   // Verify profile (component) was also retracted automatically
-  let q_profile = [p(#(types.Var("e"), "profile/bio", types.Var("bio")))]
+  let q_profile = [p(#(ast.Var("e"), "profile/bio", ast.Var("bio")))]
   aarondb.query(db, q_profile).rows
   |> should.equal([])
 }

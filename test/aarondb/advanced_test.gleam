@@ -1,6 +1,7 @@
 import aarondb
 import aarondb/fact.{Int}
-import aarondb/shared/types
+import aarondb/shared/ast
+import aarondb/shared/query_types.{type QueryResult}
 import gleam/dict
 import gleam/list
 import gleeunit
@@ -23,8 +24,8 @@ pub fn negation_test() {
 
   let result =
     aarondb.query(db, [
-      aarondb.p(#(types.Var("e"), "name", types.Var("n"))),
-      types.Negative(#(types.Var("e"), "parent", types.Var("child"))),
+      aarondb.p(#(ast.Var("e"), "name", ast.Var("n"))),
+      ast.Negative(#(ast.Var("e"), "parent", ast.Var("child"))),
     ])
 
   should.equal(list.length(result.rows), 2)
@@ -62,8 +63,8 @@ pub fn aggregation_test() {
   // 1. Count
   let res_count =
     aarondb.query(db, [
-      types.Aggregate("total", types.Count, "e", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("total", ast.Count, ast.Var("e"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
     ])
   let assert Ok(row) = list.first(res_count.rows)
@@ -72,8 +73,8 @@ pub fn aggregation_test() {
   // 2. Sum
   let res_sum =
     aarondb.query(db, [
-      types.Aggregate("sum_age", types.Sum, "a", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("sum_age", ast.Sum, ast.Var("a"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
     ])
   let assert Ok(row2) = list.first(res_sum.rows)
@@ -82,11 +83,11 @@ pub fn aggregation_test() {
   // 3. Min/Max
   let res_min_max =
     aarondb.query(db, [
-      types.Aggregate("min_age", types.Min, "a", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("min_age", ast.Min, ast.Var("a"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
-      types.Aggregate("max_age", types.Max, "a", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("max_age", ast.Max, ast.Var("a"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
     ])
   let assert Ok(row3) = list.first(res_min_max.rows)
@@ -108,8 +109,8 @@ pub fn advanced_aggregation_test() {
   // 2. Avg Test
   let res_avg =
     aarondb.query(db, [
-      types.Aggregate("avg", types.Avg, "a", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("avg", ast.Avg, ast.Var("a"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
     ])
   should.equal(res_avg.rows, [dict.from_list([#("avg", fact.Float(30.0))])])
@@ -117,8 +118,8 @@ pub fn advanced_aggregation_test() {
   // 3. Median Test (Odd length)
   let res_med_odd =
     aarondb.query(db, [
-      types.Aggregate("med", types.Median, "a", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("med", ast.Median, ast.Var("a"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
     ])
   should.equal(res_med_odd.rows, [dict.from_list([#("med", fact.Int(30))])])
@@ -131,8 +132,8 @@ pub fn advanced_aggregation_test() {
 
   let res_med_even =
     aarondb.query(db, [
-      types.Aggregate("med", types.Median, "a", [
-        aarondb.p(#(types.Var("e"), "user/age", types.Var("a"))),
+      ast.Aggregate("med", ast.Median, ast.Var("a"), [
+        aarondb.p(#(ast.Var("e"), "user/age", ast.Var("a"))),
       ]),
     ])
   should.equal(res_med_even.rows, [dict.from_list([#("med", fact.Float(31.0))])])
@@ -150,14 +151,14 @@ pub fn query_state_test() {
   // Query persistent DB (should be empty)
   let res1 =
     aarondb.query(db, [
-      aarondb.p(#(types.Var("e"), "temp/data", types.Var("d"))),
+      aarondb.p(#(ast.Var("e"), "temp/data", ast.Var("d"))),
     ])
   should.equal(list.length(res1.rows), 0)
 
   // Query speculative state (should have data)
-  let res2 =
+  let res2: QueryResult =
     aarondb.query_state(spec_res.state, [
-      aarondb.p(#(types.Var("e"), "temp/data", types.Var("d"))),
+      aarondb.p(#(ast.Var("e"), "temp/data", ast.Var("d"))),
     ])
   should.equal(list.length(res2.rows), 1)
   let assert Ok(row) = list.first(res2.rows)

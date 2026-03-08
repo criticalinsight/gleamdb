@@ -1,4 +1,5 @@
 import gleam/json
+
 pub type Tool {
   Tool(
     name: String,
@@ -21,6 +22,16 @@ pub fn all_tools() -> List(Tool) {
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "concept",
               json.object([
@@ -72,6 +83,18 @@ pub fn all_tools() -> List(Tool) {
                     #(
                       "properties",
                       json.object([
+                        #(
+                          "capability_token",
+                          json.object([
+                            #(
+                              "description",
+                              json.string(
+                                "The capability token validating this action.",
+                              ),
+                            ),
+                            #("type", json.string("string")),
+                          ]),
+                        ),
                         #(
                           "name",
                           json.object([
@@ -126,6 +149,18 @@ pub fn all_tools() -> List(Tool) {
                     #(
                       "properties",
                       json.object([
+                        #(
+                          "capability_token",
+                          json.object([
+                            #(
+                              "description",
+                              json.string(
+                                "The capability token validating this action.",
+                              ),
+                            ),
+                            #("type", json.string("string")),
+                          ]),
+                        ),
                         #(
                           "from_entity",
                           json.object([
@@ -210,6 +245,18 @@ pub fn all_tools() -> List(Tool) {
                     #(
                       "properties",
                       json.object([
+                        #(
+                          "capability_token",
+                          json.object([
+                            #(
+                              "description",
+                              json.string(
+                                "The capability token validating this action.",
+                              ),
+                            ),
+                            #("type", json.string("string")),
+                          ]),
+                        ),
                         #(
                           "relation",
                           json.object([
@@ -329,6 +376,16 @@ pub fn all_tools() -> List(Tool) {
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "memories",
               json.object([
                 #(
@@ -341,6 +398,18 @@ pub fn all_tools() -> List(Tool) {
                     #(
                       "properties",
                       json.object([
+                        #(
+                          "capability_token",
+                          json.object([
+                            #(
+                              "description",
+                              json.string(
+                                "The capability token validating this action.",
+                              ),
+                            ),
+                            #("type", json.string("string")),
+                          ]),
+                        ),
                         #(
                           "concept",
                           json.object([
@@ -399,6 +468,18 @@ pub fn all_tools() -> List(Tool) {
                                   "properties",
                                   json.object([
                                     #(
+                                      "capability_token",
+                                      json.object([
+                                        #(
+                                          "description",
+                                          json.string(
+                                            "The capability token validating this action.",
+                                          ),
+                                        ),
+                                        #("type", json.string("string")),
+                                      ]),
+                                    ),
+                                    #(
                                       "name",
                                       json.object([
                                         #("type", json.string("string")),
@@ -440,6 +521,18 @@ pub fn all_tools() -> List(Tool) {
                                 #(
                                   "properties",
                                   json.object([
+                                    #(
+                                      "capability_token",
+                                      json.object([
+                                        #(
+                                          "description",
+                                          json.string(
+                                            "The capability token validating this action.",
+                                          ),
+                                        ),
+                                        #("type", json.string("string")),
+                                      ]),
+                                    ),
                                     #(
                                       "from_entity",
                                       json.object([
@@ -493,6 +586,18 @@ pub fn all_tools() -> List(Tool) {
                                 #(
                                   "properties",
                                   json.object([
+                                    #(
+                                      "capability_token",
+                                      json.object([
+                                        #(
+                                          "description",
+                                          json.string(
+                                            "The capability token validating this action.",
+                                          ),
+                                        ),
+                                        #("type", json.string("string")),
+                                      ]),
+                                    ),
                                     #(
                                       "relation",
                                       json.object([
@@ -608,6 +713,16 @@ pub fn all_tools() -> List(Tool) {
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "before",
               json.object([
@@ -734,6 +849,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "id",
               json.object([
                 #("description", json.string("Memory ID (ULID).")),
@@ -766,6 +891,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "id",
               json.object([
                 #("description", json.string("Memory ID to forget.")),
@@ -797,6 +932,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "relation",
               json.object([
@@ -882,6 +1027,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "vault",
               json.object([
                 #(
@@ -907,6 +1062,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "vault",
               json.object([
                 #(
@@ -931,6 +1096,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "id",
               json.object([
@@ -988,6 +1163,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "ids",
               json.object([
                 #(
@@ -1037,6 +1222,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "since",
               json.object([
                 #(
@@ -1073,6 +1268,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "alternatives",
               json.object([
@@ -1138,6 +1343,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "id",
               json.object([
                 #(
@@ -1172,6 +1387,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "follow_entities",
               json.object([
@@ -1254,6 +1479,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "engram_id",
               json.object([
                 #(
@@ -1304,6 +1539,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "id",
               json.object([
@@ -1369,6 +1614,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "limit",
               json.object([
                 #(
@@ -1404,6 +1659,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "id",
               json.object([
                 #("description", json.string("ID of the memory to re-enrich.")),
@@ -1436,6 +1701,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "vault",
               json.object([
                 #(
@@ -1460,6 +1735,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "limit",
               json.object([
@@ -1495,6 +1780,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "entity_name",
               json.object([
@@ -1539,6 +1834,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "entity_name",
               json.object([
@@ -1599,6 +1904,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "root",
               json.object([
                 #(
@@ -1610,6 +1925,18 @@ When to specify explicitly:
                 #(
                   "properties",
                   json.object([
+                    #(
+                      "capability_token",
+                      json.object([
+                        #(
+                          "description",
+                          json.string(
+                            "The capability token validating this action.",
+                          ),
+                        ),
+                        #("type", json.string("string")),
+                      ]),
+                    ),
                     #(
                       "children",
                       json.object([
@@ -1623,6 +1950,18 @@ When to specify explicitly:
                             #(
                               "properties",
                               json.object([
+                                #(
+                                  "capability_token",
+                                  json.object([
+                                    #(
+                                      "description",
+                                      json.string(
+                                        "The capability token validating this action.",
+                                      ),
+                                    ),
+                                    #("type", json.string("string")),
+                                  ]),
+                                ),
                                 #(
                                   "children",
                                   json.object([
@@ -1640,6 +1979,18 @@ When to specify explicitly:
                                         #(
                                           "properties",
                                           json.object([
+                                            #(
+                                              "capability_token",
+                                              json.object([
+                                                #(
+                                                  "description",
+                                                  json.string(
+                                                    "The capability token validating this action.",
+                                                  ),
+                                                ),
+                                                #("type", json.string("string")),
+                                              ]),
+                                            ),
                                             #(
                                               "children",
                                               json.object([
@@ -1661,6 +2012,23 @@ When to specify explicitly:
                                                     #(
                                                       "properties",
                                                       json.object([
+                                                        #(
+                                                          "capability_token",
+                                                          json.object([
+                                                            #(
+                                                              "description",
+                                                              json.string(
+                                                                "The capability token validating this action.",
+                                                              ),
+                                                            ),
+                                                            #(
+                                                              "type",
+                                                              json.string(
+                                                                "string",
+                                                              ),
+                                                            ),
+                                                          ]),
+                                                        ),
                                                         #(
                                                           "children",
                                                           json.object([
@@ -1935,6 +2303,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "include_completed",
               json.object([
                 #(
@@ -2003,6 +2381,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "min_count",
               json.object([
                 #(
@@ -2051,6 +2439,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "format",
               json.object([
@@ -2107,6 +2505,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "concept",
               json.object([
@@ -2187,6 +2595,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "threshold",
               json.object([
                 #(
@@ -2235,6 +2653,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "dry_run",
               json.object([
@@ -2297,6 +2725,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "dry_run",
               json.object([
@@ -2374,6 +2812,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "id",
               json.object([
                 #("description", json.string("Engram ID (ULID).")),
@@ -2405,6 +2853,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "entity_name",
               json.object([
@@ -2455,6 +2913,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "engram_id",
               json.object([
                 #("description", json.string("Engram ID that was retrieved")),
@@ -2499,6 +2967,16 @@ When to specify explicitly:
           "properties",
           json.object([
             #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
+            #(
               "limit",
               json.object([
                 #(
@@ -2540,6 +3018,16 @@ When to specify explicitly:
         #(
           "properties",
           json.object([
+            #(
+              "capability_token",
+              json.object([
+                #(
+                  "description",
+                  json.string("The capability token validating this action."),
+                ),
+                #("type", json.string("string")),
+              ]),
+            ),
             #(
               "limit",
               json.object([

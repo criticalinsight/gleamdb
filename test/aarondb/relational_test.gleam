@@ -1,6 +1,6 @@
 import aarondb
 import aarondb/fact.{Int, Str}
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import gleam/dict
 import gleam/list
 import gleeunit

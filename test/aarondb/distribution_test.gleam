@@ -1,6 +1,6 @@
 import aarondb
 import aarondb/fact
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import gleam/list
 import gleeunit/should
 

@@ -3,7 +3,7 @@ import gleeunit/should
 
 import aarondb
 import aarondb/fact.{Int}
-import aarondb/shared/types
+import aarondb/shared/ast as types
 
 pub fn parallel_execution_test() {
   let db = aarondb.new()

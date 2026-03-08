@@ -1,6 +1,7 @@
 import gleam/option.{type Option}
 
-pub type Ulid = String
+pub type Ulid =
+  String
 
 pub type LifecycleState {
   StatePlanning

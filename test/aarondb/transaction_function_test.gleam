@@ -1,7 +1,8 @@
 import aarondb
 import aarondb/fact
 import aarondb/index
-import aarondb/shared/types
+import aarondb/shared/ast as types
+import aarondb/shared/state
 import gleam/dict
 import gleam/list
 import gleam/option
@@ -11,7 +12,7 @@ pub fn transaction_function_inc_test() {
   let db = aarondb.new()
 
   // 1. Define 'increment' function
-  let inc = fn(state: types.DbState, _tx: Int, _vt: Int, args: List(fact.Value)) {
+  let inc = fn(state: state.DbState, _tx: Int, _vt: Int, args: List(fact.Value)) {
     case args {
       [fact.Ref(eid), fact.Str(attr)] -> {
         let existing =
@@ -68,7 +69,7 @@ pub fn transaction_function_temporal_test() {
 
   // Define a function that asserts a fact ONLY if queried at a specific valid time
   let temporal_fn = fn(
-    _state: types.DbState,
+    _state: state.DbState,
     _tx: Int,
     vt: Int,
     _args: List(fact.Value),

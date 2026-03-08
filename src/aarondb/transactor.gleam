@@ -7,8 +7,10 @@ import aarondb/index/ets as ets_index
 import aarondb/process_extra
 import aarondb/raft
 import aarondb/reactive
-import aarondb/shared/types
+import aarondb/shared/ast
+import aarondb/shared/state
 import aarondb/storage
+import aarondb/storage/internal
 import aarondb/storage/mnesia
 import aarondb/vec_index
 import gleam/dict
@@ -24,35 +26,35 @@ pub type Message {
   Transact(
     List(fact.Fact),
     Option(Int),
-    process.Subject(Result(types.DbState, String)),
+    process.Subject(Result(state.DbState, String)),
   )
   Retract(
     List(fact.Fact),
     Option(Int),
-    process.Subject(Result(types.DbState, String)),
+    process.Subject(Result(state.DbState, String)),
   )
-  GetState(process.Subject(types.DbState))
+  GetState(process.Subject(state.DbState))
   SetSchema(String, fact.AttributeConfig, process.Subject(Result(Nil, String)))
-  RegisterFunction(String, fact.DbFunction(types.DbState), process.Subject(Nil))
+  RegisterFunction(String, fact.DbFunction(state.DbState), process.Subject(Nil))
   RegisterPredicate(String, fn(fact.Value) -> Bool, process.Subject(Nil))
   RegisterComposite(List(String), process.Subject(Result(Nil, String)))
-  StoreRule(types.Rule, process.Subject(Result(Nil, String)))
-  SetReactive(process.Subject(types.ReactiveMessage))
+  StoreRule(ast.Rule, process.Subject(Result(Nil, String)))
+  SetReactive(process.Subject(state.ReactiveMessage))
   Join(process.Pid)
   SyncDatoms(List(fact.Datom))
   RaftMsg(raft.RaftMessage)
   Compact(process.Subject(Nil))
-  SetConfig(types.Config, process.Subject(Nil))
+  SetConfig(state.Config, process.Subject(Nil))
   Sync(process.Subject(Nil))
   Boot(Option(String), storage.StorageAdapter, process.Subject(Nil))
-  RegisterIndexAdapter(types.IndexAdapter, process.Subject(Nil))
+  RegisterIndexAdapter(state.IndexAdapter, process.Subject(Nil))
   CreateIndex(String, String, String, process.Subject(Result(Nil, String)))
   CreateBM25Index(String, process.Subject(Result(Nil, String)))
   Subscribe(process.Subject(List(fact.Datom)))
   Prune(Int, List(String), process.Subject(Int))
-  RetractEntity(fact.EntityId, process.Subject(Result(types.DbState, String)))
+  RetractEntity(fact.EntityId, process.Subject(Result(state.DbState, String)))
   Tick
-  LogQuery(types.QueryContext, process.Subject(Nil))
+  LogQuery(state.QueryContext, process.Subject(Nil))
 }
 
 pub type Db =
@@ -93,7 +95,7 @@ fn do_start_named(
   let assert Ok(reactive_subject) = reactive.start_link()
 
   let base_state =
-    types.DbState(
+    state.DbState(
       adapter: store,
       eavt: index.new_index(),
       aevt: index.new_aindex(),
@@ -117,7 +119,7 @@ fn do_start_named(
       stored_rules: [],
       virtual_predicates: dict.new(),
       columnar_store: dict.new(),
-      config: types.Config(
+      config: state.Config(
         parallel_threshold: 1000,
         batch_size: 1000,
         prefetch_enabled: False,
@@ -139,7 +141,13 @@ fn do_start_named(
       let _ = process.receive(reply, 600_000)
 
       let pid = process_extra.subject_to_pid(subj)
-      let _ = global.register("aarondb_leader", pid)
+      let _ = case is_distributed {
+        True -> Nil
+        False -> {
+          let _ = global.register("aarondb_leader", pid)
+          Nil
+        }
+      }
 
       // Start lifecycle actor
       let _ = process.spawn(fn() { lifecycle_loop(subj) })
@@ -158,12 +166,12 @@ fn lifecycle_loop(parent: process.Subject(Message)) {
 pub fn retract_entity(
   subj: process.Subject(Message),
   eid: fact.EntityId,
-  reply: process.Subject(Result(types.DbState, String)),
+  reply: process.Subject(Result(state.DbState, String)),
 ) -> Nil {
   process.send(subj, RetractEntity(eid, reply))
 }
 
-pub fn log_query(subj: process.Subject(Message), ctx: types.QueryContext) -> Nil {
+pub fn log_query(subj: process.Subject(Message), ctx: state.QueryContext) -> Nil {
   let reply = process.new_subject()
   process.send(subj, LogQuery(ctx, reply))
   // Fire and forget is okay, but we'll await with a short timeout to prevent mailbox overflow
@@ -171,7 +179,7 @@ pub fn log_query(subj: process.Subject(Message), ctx: types.QueryContext) -> Nil
   Nil
 }
 
-pub fn get_state(subj: process.Subject(Message)) -> types.DbState {
+pub fn get_state(subj: process.Subject(Message)) -> state.DbState {
   let reply = process.new_subject()
   process.send(subj, GetState(reply))
   let assert Ok(state) = process.receive(reply, 5000)
@@ -206,7 +214,7 @@ pub fn set_schema_with_timeout(
 pub fn register_function(
   subj: process.Subject(Message),
   name: String,
-  func: fact.DbFunction(types.DbState),
+  func: fact.DbFunction(state.DbState),
 ) -> Nil {
   let reply = process.new_subject()
   process.send(subj, RegisterFunction(name, func, reply))
@@ -237,7 +245,7 @@ pub fn register_predicate(
 
 pub fn store_rule(
   subj: process.Subject(Message),
-  rule: types.Rule,
+  rule: ast.Rule,
 ) -> Result(Nil, String) {
   let reply = process.new_subject()
   process.send(subj, StoreRule(rule, reply))
@@ -245,7 +253,7 @@ pub fn store_rule(
   res
 }
 
-pub fn set_config(subj: process.Subject(Message), config: types.Config) -> Nil {
+pub fn set_config(subj: process.Subject(Message), config: state.Config) -> Nil {
   let reply = process.new_subject()
   process.send(subj, SetConfig(config, reply))
   let assert Ok(Nil) = process.receive(reply, 5000)
@@ -255,7 +263,7 @@ pub fn set_config(subj: process.Subject(Message), config: types.Config) -> Nil {
 pub fn transact(
   subj: process.Subject(Message),
   facts: List(fact.Fact),
-) -> Result(types.DbState, String) {
+) -> Result(state.DbState, String) {
   let reply = process.new_subject()
   process.send(subj, Transact(facts, None, reply))
   let assert Ok(res) = process.receive(reply, 5000)
@@ -266,7 +274,7 @@ pub fn transact_with_timeout(
   subj: process.Subject(Message),
   facts: List(fact.Fact),
   timeout_ms: Int,
-) -> Result(types.DbState, String) {
+) -> Result(state.DbState, String) {
   let reply = process.new_subject()
   process.send(subj, Transact(facts, None, reply))
   case process.receive(reply, timeout_ms) {
@@ -278,7 +286,7 @@ pub fn transact_with_timeout(
 pub fn retract(
   subj: process.Subject(Message),
   facts: List(fact.Fact),
-) -> Result(types.DbState, String) {
+) -> Result(state.DbState, String) {
   let reply = process.new_subject()
   process.send(subj, Retract(facts, None, reply))
   let assert Ok(res) = process.receive(reply, 5000)
@@ -286,11 +294,11 @@ pub fn retract(
 }
 
 pub fn compute_next_state(
-  state: types.DbState,
+  state: state.DbState,
   facts: List(fact.Fact),
   valid_time: Option(Int),
   op: fact.Operation,
-) -> Result(#(types.DbState, List(fact.Datom)), String) {
+) -> Result(#(state.DbState, List(fact.Datom)), String) {
   let tx_id = state.latest_tx + 1
   let vt = option.unwrap(valid_time, tx_id)
 
@@ -336,11 +344,29 @@ pub fn compute_next_state(
 
   case datoms_res {
     Ok(datoms) -> {
-      // 3. APPLY VALIDATIONS
-      // Check in-flight datoms for uniqueness violations within the transaction
+      // 3. APPLY TO STATE AND GENERATE SIDE-EFFECTS
+      // We must reverse because they were prepended
+      let datoms = list.reverse(datoms)
+
+      let #(final_state, all_datoms, _) =
+        list.fold(datoms, #(state, [], 0), fn(acc, d) {
+          let #(curr_state, collected, next_idx) = acc
+          let #(new_state, side_effects, updated_idx) =
+            apply_datom(
+              curr_state,
+              fact.Datom(..d, tx_index: next_idx),
+              next_idx,
+            )
+          #(new_state, list.append(side_effects, collected), updated_idx)
+        })
+
+      let all_datoms = list.reverse(all_datoms)
+
+      // 4. APPLY VALIDATIONS
       let validate_res =
-        list.fold_until(datoms, Ok(Nil), fn(_, d) {
-          case validate_datom_full(state, datoms, d) {
+        list.fold_until(all_datoms, Ok(Nil), fn(_, d) {
+          // Use INITIAL state for validation, but include IN-FLIGHT datoms
+          case validate_datom_full(state, all_datoms, d) {
             Ok(_) -> list.Continue(Ok(Nil))
             Error(e) -> list.Stop(Error(e))
           }
@@ -348,11 +374,7 @@ pub fn compute_next_state(
 
       case validate_res {
         Ok(_) -> {
-          // Re-sort reversed list
-          let datoms = list.reverse(datoms)
-          let final_state =
-            list.fold(datoms, state, fn(acc, d) { apply_datom(acc, d) })
-          Ok(#(types.DbState(..final_state, latest_tx: tx_id), datoms))
+          Ok(#(state.DbState(..final_state, latest_tx: tx_id), all_datoms))
         }
         Error(e) -> Error(e)
       }
@@ -362,7 +384,7 @@ pub fn compute_next_state(
 }
 
 fn validate_datom_full(
-  state: types.DbState,
+  state: state.DbState,
   tx_datoms: List(fact.Datom),
   d: fact.Datom,
 ) -> Result(Nil, String) {
@@ -383,17 +405,29 @@ fn validate_datom_full(
   // Uniqueness check (including in-flight)
   let res = case config.unique && d.operation == fact.Assert {
     True -> {
-      let existing = index.get_entity_by_av(state.avet, d.attribute, d.value)
-      case existing {
-        Ok(eid) if eid != d.entity ->
+      let existing = index.get_datoms_by_val(state.aevt, d.attribute, d.value)
+      // Filter out existing datoms that are retracted in the SAME transaction
+      let effectively_existing =
+        list.filter(existing, fn(ed) {
+          ed.operation == fact.Assert
+          && !list.any(tx_datoms, fn(td) {
+            td.entity == ed.entity
+            && td.attribute == ed.attribute
+            && td.operation == fact.Retract
+          })
+        })
+
+      case effectively_existing {
+        [ed, ..] if ed.entity != d.entity ->
           Error("Uniqueness violation for " <> d.attribute)
         _ -> {
-          // Check in-flight (only those that appeared BEFORE d)
+          // Check in-flight asserts (only those that appeared BEFORE d)
           let in_flight_violation =
             list.any(tx_datoms, fn(td) {
               td.attribute == d.attribute
               && td.value == d.value
               && td.entity != d.entity
+              && td.operation == fact.Assert
               && td.tx_index < d.tx_index
             })
           case in_flight_violation {
@@ -540,9 +574,9 @@ fn validate_datom_full(
 }
 
 fn handle_message(
-  state: types.DbState,
+  state: state.DbState,
   msg: Message,
-) -> actor.Next(types.DbState, Message) {
+) -> actor.Next(state.DbState, Message) {
   case msg {
     LogQuery(ctx, reply) -> {
       let history = list.append(state.query_history, [ctx])
@@ -551,7 +585,7 @@ fn handle_message(
         False -> history
       }
       process.send(reply, Nil)
-      actor.continue(types.DbState(..state, query_history: trimmed))
+      actor.continue(state.DbState(..state, query_history: trimmed))
     }
     Tick -> {
       let current_tx = state.latest_tx
@@ -608,7 +642,7 @@ fn handle_message(
       // Predictive Prefetching
       case state.config.prefetch_enabled {
         True -> {
-          let hot_attrs = prefetch.analyze_history(state.query_history)
+          let _hot_attrs = prefetch.analyze_history(state.query_history)
           case state.ets_name {
             Some(_name) -> {
               // In a fully flushed out system, we would query the StorageAdapter or Mnesia 
@@ -624,7 +658,7 @@ fn handle_message(
       }
 
       actor.continue(
-        types.DbState(..state, eavt: new_eavt, aevt: new_aevt, avet: new_avet),
+        state.DbState(..state, eavt: new_eavt, aevt: new_aevt, avet: new_avet),
       )
     }
     Boot(ets_name, _store, reply) -> {
@@ -723,19 +757,19 @@ fn handle_message(
         None -> {
           let new_schema = dict.insert(state.schema, attr, config)
           process.send(reply_to, Ok(Nil))
-          actor.continue(types.DbState(..state, schema: new_schema))
+          actor.continue(state.DbState(..state, schema: new_schema))
         }
       }
     }
     RegisterFunction(name, func, reply_to) -> {
       let new_funcs = dict.insert(state.functions, name, func)
       process.send(reply_to, Nil)
-      actor.continue(types.DbState(..state, functions: new_funcs))
+      actor.continue(state.DbState(..state, functions: new_funcs))
     }
     RegisterPredicate(name, pred, reply_to) -> {
       let new_preds = dict.insert(state.predicates, name, pred)
       process.send(reply_to, Nil)
-      actor.continue(types.DbState(..state, predicates: new_preds))
+      actor.continue(state.DbState(..state, predicates: new_preds))
     }
     RegisterComposite(attrs, reply_to) -> {
       // Check for violations in existing data
@@ -780,7 +814,7 @@ fn handle_message(
         False -> {
           let new_composites = [attrs, ..state.composites]
           process.send(reply_to, Ok(Nil))
-          actor.continue(types.DbState(..state, composites: new_composites))
+          actor.continue(state.DbState(..state, composites: new_composites))
         }
       }
     }
@@ -797,7 +831,7 @@ fn handle_message(
         Ok(#(final_state, datoms)) -> {
           let _ = storage.insert(final_state.adapter, datoms)
           let final_state_with_rules =
-            types.DbState(..final_state, stored_rules: new_rules)
+            state.DbState(..final_state, stored_rules: new_rules)
           process.send(reply_to, Ok(Nil))
           actor.continue(final_state_with_rules)
         }
@@ -809,10 +843,10 @@ fn handle_message(
     }
     Subscribe(reply_to) -> {
       let new_subscribers = [reply_to, ..state.subscribers]
-      actor.continue(types.DbState(..state, subscribers: new_subscribers))
+      actor.continue(state.DbState(..state, subscribers: new_subscribers))
     }
     SetConfig(config, reply_to) -> {
-      let new_state = types.DbState(..state, config: config)
+      let new_state = state.DbState(..state, config: config)
       process.send(reply_to, Nil)
       actor.continue(new_state)
     }
@@ -821,12 +855,12 @@ fn handle_message(
 }
 
 fn do_handle_transact(
-  state: types.DbState,
+  state: state.DbState,
   facts: List(fact.Fact),
   valid_time: Option(Int),
   op: fact.Operation,
-  reply: process.Subject(Result(types.DbState, String)),
-) -> actor.Next(types.DbState, Message) {
+  reply: process.Subject(Result(state.DbState, String)),
+) -> actor.Next(state.DbState, Message) {
   case compute_next_state(state, facts, valid_time, op) {
     Ok(#(final_state, datoms)) -> {
       let _ = storage.insert(final_state.adapter, datoms)
@@ -836,7 +870,7 @@ fn do_handle_transact(
         list.map(datoms, fn(d) { d.attribute }) |> list.unique()
       process.send(
         state.reactive_actor,
-        types.Notify(changed_attrs, final_state),
+        state.Notify(changed_attrs, final_state),
       )
       list.each(state.subscribers, fn(sub) { process.send(sub, datoms) })
 
@@ -850,7 +884,11 @@ fn do_handle_transact(
   }
 }
 
-fn apply_datom(state: types.DbState, d: fact.Datom) -> types.DbState {
+fn apply_datom(
+  state: state.DbState,
+  d: fact.Datom,
+  tx_idx_counter: Int,
+) -> #(state.DbState, List(fact.Datom), Int) {
   let config =
     dict.get(state.schema, d.attribute)
     |> result.unwrap(fact.AttributeConfig(
@@ -866,39 +904,40 @@ fn apply_datom(state: types.DbState, d: fact.Datom) -> types.DbState {
     ))
 
   // Handle component cascade
-  let state_with_cascade = case
+  let #(state_after_cascade, cascade_datoms, cascade_idx) = case
     config.component && d.operation == fact.Retract
   {
     True -> {
       let children = case d.value {
         fact.Ref(eid) -> [eid]
         fact.Int(eid_int) -> [fact.EntityId(eid_int)]
-        // Handle Int shorthand for Ref
         _ -> []
       }
-      list.fold(children, state, fn(acc, child_eid) {
-        let child_datoms = index.filter_by_entity(acc.eavt, child_eid)
-        list.fold(child_datoms, acc, fn(acc2, cd) {
-          let r_d = fact.Datom(..cd, operation: fact.Retract, tx: d.tx)
-          update_indices(acc2, r_d)
+      list.fold(children, #(state, [], tx_idx_counter), fn(acc, child_eid) {
+        let #(curr_state, curr_datoms, idx) = acc
+        let child_datoms = index.filter_by_entity(curr_state.eavt, child_eid)
+        list.fold(child_datoms, #(curr_state, curr_datoms, idx), fn(acc2, cd) {
+          let #(s2, d2, i2) = acc2
+          let r_d =
+            fact.Datom(..cd, operation: fact.Retract, tx: d.tx, tx_index: i2)
+          #(update_indices(s2, r_d), [r_d, ..d2], i2 + 1)
         })
       })
     }
-    False -> state
+    False -> #(state, [], tx_idx_counter)
   }
 
   // Handle cardinality one
-  let clean_state = case
+  let #(state_after_card, card_datoms, card_idx) = case
     config.cardinality == fact.One && d.operation == fact.Assert
   {
     True -> {
       let all_datoms =
         index.get_datoms_by_entity_attr(
-          state_with_cascade.eavt,
+          state_after_cascade.eavt,
           d.entity,
           d.attribute,
         )
-      // Only retract ACTIVE asserts (those that haven't been retracted yet)
       let asserts =
         list.filter(all_datoms, fn(d) { d.operation == fact.Assert })
       let retractions =
@@ -911,33 +950,49 @@ fn apply_datom(state: types.DbState, d: fact.Datom) -> types.DbState {
           })
         })
 
-      list.fold(active_asserts, state_with_cascade, fn(acc, old_d) {
-        let r_d = fact.Datom(..old_d, operation: fact.Retract, tx: d.tx)
-        update_indices(acc, r_d)
-      })
+      list.fold(
+        active_asserts,
+        #(state_after_cascade, [], cascade_idx),
+        fn(acc, old_d) {
+          let #(s, ds, i) = acc
+          let r_d =
+            fact.Datom(..old_d, operation: fact.Retract, tx: d.tx, tx_index: i)
+          #(update_indices(s, r_d), [r_d, ..ds], i + 1)
+        },
+      )
     }
-    False -> state_with_cascade
+    False -> #(state_after_cascade, [], cascade_idx)
   }
 
   // Handle retention policy
-  let final_state = case
+  let state_after_retention = case
     config.retention == fact.LatestOnly && d.operation == fact.Assert
   {
     True -> {
       let existing =
-        index.get_datoms_by_entity_attr(clean_state.eavt, d.entity, d.attribute)
-      list.fold(existing, clean_state, fn(acc, old_d) {
-        // Evict instead of retract to avoid history
-        types.DbState(..acc, eavt: index.evict_from_memory(acc.eavt, [old_d]))
+        index.get_datoms_by_entity_attr(
+          state_after_card.eavt,
+          d.entity,
+          d.attribute,
+        )
+      list.fold(existing, state_after_card, fn(acc, old_d) {
+        state.DbState(..acc, eavt: index.evict_from_memory(acc.eavt, [old_d]))
       })
     }
-    False -> clean_state
+    False -> state_after_card
   }
 
-  update_indices(final_state, d)
+  let d_with_idx = fact.Datom(..d, tx_index: card_idx)
+
+  let final_state = update_indices(state_after_retention, d_with_idx)
+  #(
+    final_state,
+    list.append(list.append(cascade_datoms, card_datoms), [d_with_idx]),
+    card_idx + 1,
+  )
 }
 
-fn update_indices(state: types.DbState, d: fact.Datom) -> types.DbState {
+fn update_indices(state: state.DbState, d: fact.Datom) -> state.DbState {
   // Stateful Index Updates
   let art_index = art.insert(state.art_index, d.value, d.entity)
 
@@ -958,20 +1013,21 @@ fn update_indices(state: types.DbState, d: fact.Datom) -> types.DbState {
       case chunks {
         [] -> {
           let chunk =
-            fact.ColumnChunk(
+            internal.StorageChunk(
               attribute: d.attribute,
-              values: fact.Leaf([d.value]),
-              stats: dict.new(),
+              values: internal.Leaf([d.value]),
+              max_tx: 0,
+              is_compressed: False,
             )
           dict.insert(state.columnar_store, d.attribute, [chunk])
         }
         [last, ..rest] -> {
           let updated = case last.values {
-            fact.Leaf(l) -> fact.Leaf(list.append(l, [d.value]))
+            internal.Leaf(l) -> internal.Leaf(list.append(l, [d.value]))
             node -> node
           }
           dict.insert(state.columnar_store, d.attribute, [
-            fact.ColumnChunk(..last, values: updated),
+            internal.StorageChunk(..last, values: updated),
             ..rest
           ])
         }
@@ -986,7 +1042,7 @@ fn update_indices(state: types.DbState, d: fact.Datom) -> types.DbState {
   let new_avet = index.insert_avet(state.avet, d)
 
   let state =
-    types.DbState(
+    state.DbState(
       ..state,
       eavt: new_eavt,
       aevt: new_aevt,
@@ -1013,7 +1069,7 @@ fn update_indices(state: types.DbState, d: fact.Datom) -> types.DbState {
 }
 
 fn resolve_transaction_functions(
-  state: types.DbState,
+  state: state.DbState,
   tx_id: Int,
   vt: Int,
   facts: List(fact.Fact),
@@ -1053,10 +1109,13 @@ fn resolve_transaction_functions(
   })
 }
 
-fn recover_state(state: types.DbState) -> types.DbState {
+fn recover_state(state: state.DbState) -> state.DbState {
   case storage.read_all(state.adapter) {
     Ok(datoms) -> {
-      list.fold(datoms, state, fn(acc, d) { apply_datom(acc, d) })
+      list.fold(datoms, state, fn(acc, d) {
+        let #(s, _, _) = apply_datom(acc, d, d.tx_index)
+        s
+      })
     }
     Error(_) -> state
   }

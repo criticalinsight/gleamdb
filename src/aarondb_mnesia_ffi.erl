@@ -1,5 +1,5 @@
 -module(aarondb_mnesia_ffi).
--export([init/0, persist/1, persist_batch/1, recover/0]).
+-export([init/0, persist/1, persist_batch/1, recover/0, select/1]).
 
 init() ->
     case mnesia:system_info(is_running) of
@@ -46,6 +46,19 @@ recover() ->
     F = fun() ->
         mnesia:match_object(datoms, {datom, '_', '_', '_', '_', '_', '_', '_'}, read)
     end,
+    case mnesia:transaction(F) of
+        {atomic, Records} -> {ok, Records};
+        {aborted, Reason} -> {error, list_to_binary(io_lib:format("~p", [Reason]))}
+    end.
+
+select(Pattern) ->
+    {E, A, V} = Pattern,
+    MatchE = case E of {uid, {entity_id, Eid}} -> Eid; _ -> '_' end,
+    MatchA = A, % A is already a binary in Erlang from Gleam String
+    MatchV = case V of {val, Val} -> Val; _ -> '_' end,
+
+    MS = {datom, MatchE, MatchA, MatchV, '_', '_', '_', '_'},
+    F = fun() -> mnesia:match_object(datoms, MS, read) end,
     case mnesia:transaction(F) of
         {atomic, Records} -> {ok, Records};
         {aborted, Reason} -> {error, list_to_binary(io_lib:format("~p", [Reason]))}

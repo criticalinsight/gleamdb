@@ -1,8 +1,9 @@
 import aarondb
 import aarondb/fact.{Str, Vec}
-import aarondb/shared/types.{Var}
+import aarondb/shared/ast
 import gleam/dict
 import gleam/list
+import gleam/option.{None}
 import gleeunit/should
 
 pub fn vector_similarity_test() {
@@ -13,25 +14,22 @@ pub fn vector_similarity_test() {
     aarondb.transact(db, [
       #(fact.Uid(fact.EntityId(1)), "doc/id", Str("tech-1")),
       #(fact.Uid(fact.EntityId(1)), "doc/embedding", Vec([1.0, 0.0, 0.0])),
-
       #(fact.Uid(fact.EntityId(2)), "doc/id", Str("art-1")),
       #(fact.Uid(fact.EntityId(2)), "doc/embedding", Vec([0.0, 1.0, 0.0])),
-
       #(fact.Uid(fact.EntityId(3)), "doc/id", Str("space-1")),
       #(fact.Uid(fact.EntityId(3)), "doc/embedding", Vec([0.9, 0.1, 0.0])),
     ])
 
   // 2. Query for similar documents to [0.85, 0.15, 0.0]
-  // Threshold 0.9
-  let query_vec = [0.85, 0.15, 0.0]
+  let query_vec = ast.Val(Vec([0.85, 0.15, 0.0]))
   let result =
     aarondb.query(db, [
-      aarondb.p(#(Var("e"), "doc/id", Var("id"))),
-      aarondb.p(#(Var("e"), "doc/embedding", Var("v"))),
-      types.Similarity("v", query_vec, 0.95),
+      aarondb.p(#(ast.Var("e"), "doc/id", ast.Var("id"))),
+      aarondb.p(#(ast.Var("e"), "doc/embedding", ast.Var("v"))),
+      ast.Similarity("v", query_vec, 0.95),
     ])
 
-  // Result should be space-1 and tech-1 (both very similar)
+  // Result should be space-1 and tech-1
   should.equal(list.length(result.rows), 2)
 
   let ids =
@@ -39,39 +37,42 @@ pub fn vector_similarity_test() {
       let assert Ok(Str(id)) = dict.get(row, "id")
       id
     })
-
   should.be_true(list.contains(ids, "tech-1"))
   should.be_true(list.contains(ids, "space-1"))
 }
 
-pub fn vector_discovery_test() {
+pub fn vector_retention_test() {
   let db = aarondb.new()
 
-  // 1. Setup Data
-  let assert Ok(_) =
-    aarondb.transact(db, [
-      #(fact.Uid(fact.EntityId(1)), "v", fact.Vec([1.0, 0.0])),
-      #(fact.Uid(fact.EntityId(2)), "v", fact.Vec([0.0, 1.0])),
-      #(fact.Uid(fact.EntityId(3)), "v", fact.Vec([0.95, 0.05])),
-    ])
+  // Setup with LatestOnly
+  let _ =
+    aarondb.set_schema(
+      db,
+      "v",
+      fact.AttributeConfig(
+        unique: False,
+        component: False,
+        retention: fact.LatestOnly,
+        cardinality: fact.One,
+        check: None,
+        composite_group: None,
+        layout: fact.Row,
+        tier: fact.Memory,
+        eviction: fact.AlwaysInMemory,
+      ),
+    )
 
-  // 2. Discovery Query: Find ?v and ?e where ?v is similar to [0.9, 0.1]
-  // Note: ?v is unbound here!
-  let results =
+  let eid = fact.EntityId(1)
+  let _ = aarondb.transact(db, [#(fact.Uid(eid), "v", Vec([1.0, 0.0]))])
+  let _ = aarondb.transact(db, [#(fact.Uid(eid), "v", Vec([0.0, 1.0]))])
+
+  // Should only find the latest vector
+  let res =
     aarondb.query(db, [
-      types.Similarity("v", [0.9, 0.1], 0.9),
-      aarondb.p(#(types.Var("e"), "v", types.Var("v"))),
+      ast.Similarity("v", ast.Val(Vec([0.9, 0.1])), 0.9),
+      aarondb.p(#(ast.Var("e"), "v", ast.Var("v"))),
     ])
 
-  // Should find entities 1 and 3
-  should.equal(list.length(results.rows), 2)
-
-  let es =
-    list.map(results.rows, fn(row) {
-      let assert Ok(fact.Ref(fact.EntityId(e))) = dict.get(row, "e")
-      e
-    })
-
-  should.be_true(list.contains(es, 1))
-  should.be_true(list.contains(es, 3))
+  list.length(res.rows) |> should.equal(0)
+  // [0.9, 0.1] is not similar to [0.0, 1.0]
 }

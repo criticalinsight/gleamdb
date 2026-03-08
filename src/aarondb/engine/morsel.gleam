@@ -1,5 +1,5 @@
 import aarondb/fact
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import gleam/dict.{type Dict}
 import gleam/erlang/process
 import gleam/list

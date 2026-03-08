@@ -1,6 +1,7 @@
 import aarondb
 import aarondb/fact.{Int, Str}
-import aarondb/shared/types.{Attr, Nested, PullMap, PullSingle, Wildcard}
+import aarondb/shared/ast.{Attr, Nested, Wildcard}
+import aarondb/shared/query_types.{PullMap, PullSingle}
 import gleam/dict
 import gleeunit
 import gleeunit/should

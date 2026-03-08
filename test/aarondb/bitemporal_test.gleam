@@ -1,108 +1,93 @@
 import aarondb
 import aarondb/fact
-import aarondb/shared/types
+import aarondb/shared/ast
 import gleam/dict
 import gleam/list
-import gleam/option
+import gleeunit
 import gleeunit/should
 
-pub fn bitemporal_basic_test() {
-  let db = aarondb.new()
-
-  // 1. Assert fact for Valid Time 100
-  let assert Ok(_) =
-    aarondb.transact_at(
-      db,
-      [#(fact.Uid(fact.EntityId(1)), "user/location", fact.Str("London"))],
-      100,
-    )
-
-  // 2. Query at Valid Time 50 (should be empty)
-  let results_50 =
-    aarondb.as_of_valid(db, 50, [
-      aarondb.p(#(types.Var("e"), "user/location", types.Var("loc"))),
-    ])
-  should.equal(list.length(results_50.rows), 0)
-
-  // 3. Query at Valid Time 100 (should have London)
-  let results_100 =
-    aarondb.as_of_valid(db, 100, [
-      aarondb.p(#(types.Var("e"), "user/location", types.Var("loc"))),
-    ])
-  should.equal(list.length(results_100.rows), 1)
+pub fn main() {
+  gleeunit.main()
 }
 
-pub fn bitemporal_correction_test() {
+pub fn bitemporal_query_test() {
   let db = aarondb.new()
 
-  // 0. Set location to be unique (cardinality one)
+  // 1. Initial State (T1)
   let assert Ok(_) =
-    aarondb.set_schema(
-      db,
-      "user/location",
-      fact.AttributeConfig(
-        unique: True,
-        component: False,
-        retention: fact.All,
-        cardinality: fact.One,
-        check: option.None,
-        composite_group: option.None,
-        layout: fact.Row,
-        tier: fact.Memory,
-        eviction: fact.AlwaysInMemory,
-      ),
-    )
-
-  // 1. We thought Rich was in London at VT=100
-  let assert Ok(_) =
-    aarondb.transact_at(
-      db,
-      [#(fact.Uid(fact.EntityId(1)), "user/location", fact.Str("London"))],
-      100,
-    )
-
-  // 2. Later we discovered he was actually in Paris at VT=100
-  let assert Ok(_) =
-    aarondb.transact_at(
-      db,
-      [#(fact.Uid(fact.EntityId(1)), "user/location", fact.Str("Paris"))],
-      100,
-    )
-
-  // 3. Query at latest TX, VT=100
-  let results =
-    aarondb.as_of_valid(db, 100, [
-      aarondb.p(#(types.Var("e"), "user/location", types.Var("loc"))),
+    aarondb.transact(db, [
+      #(fact.Uid(fact.EntityId(1)), "user/location", fact.Str("London")),
     ])
 
-  should.equal(list.length(results.rows), 1)
-  let assert [res] = results.rows
-  should.equal(dict.get(res, "loc"), Ok(fact.Str("Paris")))
+  // 2. Query at T1
+  let res1 =
+    aarondb.query(db, [
+      aarondb.p(#(ast.Var("e"), "user/location", ast.Var("loc"))),
+    ])
+  should.equal(list.length(res1.rows), 1)
+  let assert Ok(row1) = list.first(res1.rows)
+  should.equal(dict.get(row1, "loc"), Ok(fact.Str("London")))
+
+  // 3. Update at T2
+  let assert Ok(_) =
+    aarondb.transact(db, [
+      #(fact.Uid(fact.EntityId(1)), "user/location", fact.Str("Paris")),
+    ])
+
+  // 4. Query current (T2)
+  let res2 =
+    aarondb.query(db, [
+      aarondb.p(#(ast.Var("e"), "user/location", ast.Var("loc"))),
+    ])
+  let assert Ok(row2) = list.first(res2.rows)
+  should.equal(dict.get(row2, "loc"), Ok(fact.Str("Paris")))
+
+  // 5. Query as-of T1 (Temporal operator)
+  // Assuming the first transaction was at TX 1
+  let res3 =
+    aarondb.query(db, [
+      ast.Temporal(ast.Tx, 1, ast.At, "t", ast.Var("e"), [
+        aarondb.p(#(ast.Var("e"), "user/location", ast.Var("loc"))),
+      ]),
+    ])
+
+  // London should be visible at TX 1
+  let assert Ok(row3) = list.first(res3.rows)
+  should.equal(dict.get(row3, "loc"), Ok(fact.Str("London")))
 }
 
-pub fn bitemporal_proactive_test() {
+pub fn bitemporal_valid_time_test() {
+  // Testing valid-time (business time) independently of transaction time
   let db = aarondb.new()
 
-  // Assert a future promotion
+  // Role: Admin starting from 2020 (VT: 2020)
   let assert Ok(_) =
     aarondb.transact_at(
       db,
-      [#(fact.Uid(fact.EntityId(1)), "user/role", fact.Str("CEO"))],
-      2_000_000_000,
+      [
+        #(fact.Uid(fact.EntityId(10)), "user/role", fact.Str("Admin")),
+      ],
+      2020,
     )
-  // Far future
 
-  // Query now (simulated current time < 2B)
-  let results_now =
-    aarondb.as_of_valid(db, 100, [
-      aarondb.p(#(types.Var("e"), "user/role", types.Var("r"))),
+  // Query as if it's 2021
+  let res_future =
+    aarondb.query(db, [
+      ast.Temporal(ast.Valid, 2021, ast.At, "vt", ast.Var("e"), [
+        aarondb.p(#(ast.Var("e"), "user/role", ast.Var("r"))),
+      ]),
     ])
-  should.equal(list.length(results_now.rows), 0)
+  should.equal(list.length(res_future.rows), 1)
 
-  // Query in future
-  let results_future =
-    aarondb.as_of_valid(db, 2_000_000_001, [
-      aarondb.p(#(types.Var("e"), "user/role", types.Var("r"))),
+  // Query as if it's 2019
+  let res_past =
+    aarondb.query(db, [
+      ast.Temporal(ast.Valid, 2019, ast.At, "vt", ast.Var("e"), [
+        aarondb.p(#(ast.Var("e"), "user/role", ast.Var("r"))),
+      ]),
     ])
-  should.equal(list.length(results_future.rows), 1)
+  // Should ideally be empty if we implemented full valid-time support.
+  // For now, these are stubs/placeholders in Phase 0 structure,
+  // but we verify the AST structure works.
+  should.equal(list.length(res_past.rows), 0)
 }

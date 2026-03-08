@@ -3,7 +3,9 @@ import aarondb/fact
 import aarondb/index/art
 import aarondb/raft
 import aarondb/reactive
-import aarondb/shared/types
+import aarondb/shared/ast
+import aarondb/shared/query_types
+import aarondb/shared/state
 import aarondb/storage
 import aarondb/vec_index
 import gleam/dict
@@ -14,7 +16,7 @@ import gleeunit/should
 pub fn engine_run_test() {
   let assert Ok(reactive_subject) = reactive.start_link()
   let state =
-    types.DbState(
+    state.DbState(
       adapter: storage.ephemeral(),
       aevt: dict.new(),
       avet: dict.new(),
@@ -38,7 +40,7 @@ pub fn engine_run_test() {
       stored_rules: [],
       virtual_predicates: dict.new(),
       columnar_store: dict.new(),
-      config: types.Config(
+      config: state.Config(
         parallel_threshold: 500,
         batch_size: 100,
         prefetch_enabled: False,
@@ -48,16 +50,18 @@ pub fn engine_run_test() {
     )
 
   let query = [
-    types.Positive(#(types.Var("e"), "name", types.Val(fact.Str("Alice")))),
+    ast.Positive(#(ast.Var("e"), "name", ast.Val(fact.Str("Alice")))),
   ]
-  let results = engine.run(state, query, [], None, None)
+  let q =
+    ast.Query(find: [], where: query, order_by: None, limit: None, offset: None)
+  let results = engine.run(state, q, [], None, None)
   should.equal(list.length(results.rows), 0)
 }
 
 pub fn pull_test() {
   let assert Ok(reactive_subject) = reactive.start_link()
   let state =
-    types.DbState(
+    state.DbState(
       adapter: storage.ephemeral(),
       aevt: dict.new(),
       avet: dict.new(),
@@ -81,7 +85,7 @@ pub fn pull_test() {
       stored_rules: [],
       virtual_predicates: dict.new(),
       columnar_store: dict.new(),
-      config: types.Config(
+      config: state.Config(
         parallel_threshold: 500,
         batch_size: 100,
         prefetch_enabled: False,
@@ -89,7 +93,10 @@ pub fn pull_test() {
       ),
       query_history: [],
     )
-  let res = engine.pull(state, fact.Uid(fact.EntityId(1)), [types.Wildcard])
-  let assert types.PullMap(m) = res
+  let res = engine.pull(state, fact.EntityId(1), [ast.Wildcard])
+  let assert query_types.PullMap(m) = unsafe_coerce(res)
   should.equal(dict.size(m), 0)
 }
+
+@external(erlang, "aarondb_ffi", "dynamic_from")
+fn unsafe_coerce(a: a) -> b

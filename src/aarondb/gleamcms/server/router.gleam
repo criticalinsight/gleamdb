@@ -4,7 +4,7 @@ import aarondb/gleamcms/ai/designer
 import aarondb/gleamcms/builder/generator
 import aarondb/gleamcms/db/post.{Published}
 import aarondb/gleamcms/editor/app as editor
-import aarondb/shared/types.{Var}
+import aarondb/shared/ast.{Var}
 import gleam/dynamic/decode
 import gleam/http
 import gleam/int

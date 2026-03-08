@@ -1,6 +1,6 @@
 import aarondb
 import aarondb/fact
-import aarondb/shared/types.{In, Out}
+import aarondb/shared/ast.{In, Out}
 import gleam/list
 import gleam/option.{None}
 import gleeunit/should

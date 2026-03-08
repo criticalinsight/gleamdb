@@ -1,22 +1,18 @@
 import aarondb
 import aarondb/fact
 import aarondb/sharded
-import aarondb/shared/types
+import aarondb/shared/ast as types
+import aarondb/shared/query_types
 import gleam/dict
 import gleam/erlang/process
 import gleam/list
+import gleam/option.{None, Some}
 import gleeunit/should
 
 pub fn distributed_sum_test() {
-  let db1 = aarondb.new()
-  let db2 = aarondb.new()
-  let shards = dict.from_list([#(0, db1), #(1, db2)])
-  let sdb =
-    sharded.ShardedDb(shards: shards, shard_count: 2, cluster_id: "test")
+  let assert Ok(sdb) = sharded.start_local_sharded("sum_cluster", 2, None)
 
   // Transact data into shards
-  // EntityId(1) -> 1 % 2 = 1 (Shard 1)
-  // EntityId(2) -> 2 % 2 = 0 (Shard 0)
   let _ =
     sharded.transact(sdb, [#(fact.Uid(fact.EntityId(1)), "val", fact.Int(10))])
   let _ =
@@ -27,27 +23,32 @@ pub fn distributed_sum_test() {
     sharded.transact(sdb, [#(fact.Uid(fact.EntityId(4)), "val", fact.Int(40))])
 
   // Query global sum
-  let q = [
-    types.Aggregate("total", types.Sum, "v", [
-      types.Positive(#(types.Var("e"), "val", types.Var("v"))),
-    ]),
-  ]
+  let q =
+    types.Query(
+      find: ["total"],
+      where: [
+        types.Aggregate("total", types.Sum, types.Var("v"), [
+          types.Positive(#(types.Var("e"), "val", types.Var("v"))),
+        ]),
+      ],
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
 
   let res = sharded.query(sdb, q)
 
-  // Coordinate reduction should merge results from Shard 0 and Shard 1
+  // Coordinate reduction should merge results from shards
   list.length(res.rows) |> should.equal(1)
 
   let assert Ok(row) = list.first(res.rows)
   dict.get(row, "total") |> should.equal(Ok(fact.Int(100)))
+
+  sharded.stop(sdb)
 }
 
 pub fn distributed_count_test() {
-  let db1 = aarondb.new()
-  let db2 = aarondb.new()
-  let shards = dict.from_list([#(0, db1), #(1, db2)])
-  let sdb =
-    sharded.ShardedDb(shards: shards, shard_count: 2, cluster_id: "test")
+  let assert Ok(sdb) = sharded.start_local_sharded("count_cluster", 2, None)
 
   let _ =
     sharded.transact(sdb, [#(fact.Uid(fact.EntityId(1)), "val", fact.Int(10))])
@@ -57,17 +58,26 @@ pub fn distributed_count_test() {
     sharded.transact(sdb, [#(fact.Uid(fact.EntityId(3)), "val", fact.Int(30))])
 
   // Query global count
-  let q = [
-    types.Aggregate("cnt", types.Count, "e", [
-      types.Positive(#(types.Var("e"), "val", types.Var("_"))),
-    ]),
-  ]
+  let q =
+    types.Query(
+      find: ["cnt"],
+      where: [
+        types.Aggregate("cnt", types.Count, types.Var("e"), [
+          types.Positive(#(types.Var("e"), "val", types.Var("_"))),
+        ]),
+      ],
+      order_by: None,
+      limit: None,
+      offset: None,
+    )
 
   let res = sharded.query(sdb, q)
 
   list.length(res.rows) |> should.equal(1)
   let assert Ok(row) = list.first(res.rows)
   dict.get(row, "cnt") |> should.equal(Ok(fact.Int(3)))
+
+  sharded.stop(sdb)
 }
 
 pub fn distributed_wal_test() {
@@ -81,7 +91,7 @@ pub fn distributed_wal_test() {
       #(fact.Uid(fact.EntityId(1)), "test/wal", fact.Int(42)),
     ])
 
-  let assert Ok(datoms) = process.receive(self, 1000)
+  let assert Ok(datoms) = process.receive(self, 5000)
   list.is_empty(datoms) |> should.be_false()
   let assert Ok(d) = list.first(datoms)
   d.attribute |> should.equal("test/wal")

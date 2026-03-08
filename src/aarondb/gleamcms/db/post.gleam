@@ -1,6 +1,6 @@
 import aarondb
 import aarondb/fact.{Str}
-import aarondb/shared/types.{Val, Var}
+import aarondb/shared/ast.{Val, Var}
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}

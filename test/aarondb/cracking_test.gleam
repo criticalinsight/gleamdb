@@ -1,7 +1,7 @@
 import aarondb
 import aarondb/fact.{type AttributeConfig, All, Columnar, Int, One, Row}
 import aarondb/q
-import aarondb/shared/types.{type BodyClause, Positive, Val, Var}
+import aarondb/shared/ast.{type BodyClause, Positive, Val, Var} as types
 import gleam/option.{None, Some}
 
 pub fn cracking_test() {

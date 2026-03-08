@@ -1,6 +1,6 @@
 import aarondb
 import aarondb/fact
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import aarondb/storage
 import aarondb/storage/mnesia
 import gleam/list

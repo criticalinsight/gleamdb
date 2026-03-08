@@ -2,7 +2,7 @@ import aarondb
 import aarondb/cache
 import aarondb/fact
 import aarondb/sharded
-import aarondb/shared/types
+import aarondb/shared/ast as types
 import gleam/dict
 import gleam/erlang/process
 import gleam/list

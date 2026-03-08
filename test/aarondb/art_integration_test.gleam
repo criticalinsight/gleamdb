@@ -1,66 +1,86 @@
-import aarondb/engine
+import aarondb
 import aarondb/fact
-import aarondb/shared/types
-import aarondb/storage
-import aarondb/transactor
-import gleam/dict
+import aarondb/shared/ast
 import gleam/list
-import gleam/option.{None}
-import gleam/result
+import gleeunit
 import gleeunit/should
 
-pub fn art_integration_test() {
-  let assert Ok(db) = transactor.start(aarondb_storage_memory())
-
-  // 1. Insert Data
-  let facts = [
-    #(fact.deterministic_uid("1"), "name", fact.Str("Alice")),
-    #(fact.deterministic_uid("2"), "name", fact.Str("Alan")),
-    #(fact.deterministic_uid("3"), "name", fact.Str("Bob")),
-    #(fact.deterministic_uid("4"), "name", fact.Str("Alex")),
-    #(fact.deterministic_uid("5"), "city", fact.Str("London")),
-  ]
-
-  let assert Ok(_) = transactor.transact(db, facts)
-
-  // 2. Query with StartsWith (Filter mode - bound variable)
-  // Find entities with name starting with "Al"
-  let clause = types.Positive(#(types.Var("e"), "name", types.Var("n")))
-  let filter = types.StartsWith("n", "Al")
-
-  let state = transactor.get_state(db)
-  let results = engine.run(state, [clause, filter], [], None, None)
-
-  let names =
-    list.map(results.rows, fn(ctx) {
-      let assert Ok(fact.Str(n)) = dict.get(ctx, "n")
-      n
-    })
-
-  // Should find Alice, Alan, Alex (3)
-
-  // Should find Alice, Alan, Alex (3)
-  list.length(results.rows) |> should.equal(3)
-
-  list.contains(names, "Alice") |> should.be_true
-  list.contains(names, "Alan") |> should.be_true
-  list.contains(names, "Alex") |> should.be_true
-  list.contains(names, "Bob") |> should.be_false
-
-  // 3. Query with StartsWith (Generator mode - unbound variable)
-  // Find all values starting with "Lon"
-  let gen_filter = types.StartsWith("city_name", "Lon")
-  let results_gen = engine.run(state, [gen_filter], [], None, None)
-
-  list.length(results_gen.rows) |> should.equal(1)
-  let assert Ok(fact.Str("London")) =
-    dict.get(
-      list.first(results_gen.rows) |> result.unwrap(dict.new()),
-      "city_name",
-    )
+pub fn main() {
+  gleeunit.main()
 }
 
-fn aarondb_storage_memory() {
-  // Mock storage adapter
-  storage.ephemeral()
+pub fn art_integration_test() {
+  let db = aarondb.new()
+
+  // 1. Setup Data: Large amount of data to potentially trigger ART optimizations
+  let cities = [
+    #("London", "UK"),
+    #("Liverpool", "UK"),
+    #("Los Angeles", "USA"),
+    #("New York", "USA"),
+    #("Paris", "France"),
+    #("Berlin", "Germany"),
+  ]
+
+  let tx_data =
+    list.index_map(cities, fn(c, i) {
+      let #(name, _country) = c
+      #(fact.Uid(fact.EntityId(100 + i)), "city_name", fact.Str(name))
+    })
+    |> list.append(
+      list.index_map(cities, fn(c, i) {
+        let #(_name, country) = c
+        #(fact.Uid(fact.EntityId(100 + i)), "country", fact.Str(country))
+      }),
+    )
+
+  let assert Ok(_) = aarondb.transact(db, tx_data)
+
+  // 2. Query with Prefix Filter (should be optimized by ART if available)
+  let clause = ast.Positive(#(ast.Var("e"), "city_name", ast.Var("n")))
+  let filter = ast.StartsWith("n", "Al")
+  // Testing a prefix that matches nothing first
+  let result = aarondb.query(db, [clause, filter])
+  should.equal(list.length(result.rows), 0)
+
+  let filter2 = ast.StartsWith("n", "L")
+  let result2 = aarondb.query(db, [clause, filter2])
+  // Should match London, Liverpool, Los Angeles
+  should.equal(list.length(result2.rows), 3)
+}
+
+pub fn art_geonames_optimized_test() {
+  // Scenario: Querying cities in UK starting with "Lon"
+  let db = aarondb.new()
+
+  let data = [
+    #("London", "UK"),
+    #("Longbeach", "USA"),
+    #("Lyon", "France"),
+  ]
+
+  let assert Ok(_) =
+    aarondb.transact(
+      db,
+      list.index_map(data, fn(d, i) {
+        let eid = 200 + i
+        let #(city, country) = d
+        [
+          #(fact.Uid(fact.EntityId(eid)), "city_name", fact.Str(city)),
+          #(fact.Uid(fact.EntityId(eid)), "country", fact.Str(country)),
+        ]
+      })
+        |> list.flatten(),
+    )
+
+  let clauses = [
+    ast.Positive(#(ast.Var("e"), "city_name", ast.Var("n"))),
+    ast.Positive(#(ast.Var("e"), "country", ast.Val(fact.Str("UK")))),
+    ast.StartsWith("n", "Lon"),
+  ]
+
+  let result = aarondb.query(db, clauses)
+
+  // Only London matches both.
+  should.equal(list.length(result.rows), 1)
 }

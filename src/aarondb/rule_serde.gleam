@@ -1,4 +1,4 @@
-import aarondb/shared/types.{type Rule}
+import aarondb/shared/ast.{type Rule}
 import gleam/bit_array
 import gleam/result
 

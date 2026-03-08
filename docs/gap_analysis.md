@@ -17,8 +17,7 @@ Supports core Datalog logic: pattern matching, `Bind`, graph algorithms
 
 **Gaps:**
 
-- Datalog rules are not currently durable across node restarts; they exist only
-  locally or are registered ephemerally via the fluent API.
+- Datalog rules are now durable across node restarts, persisted via binary serialization.
 - Recursive queries using `pull_recursive` are functional but highly
   memory-intensive on deep graphs and could benefit from query-planner
   optimizations or lazy stream evaluation.
@@ -48,12 +47,10 @@ tools have been translated and JSON-RPC stubs created.
 
 **Gaps:**
 
-- The actual execution body for the `tools/call` JSON-RPC handler in the MCP
-  server is stubbed; it currently returns an error and needs to be mapped
-  explicitly to internal Gleam function invocations.
-- The decay functions are evaluated upon query retrieval, but we lack an active
-  garbage-collection mechanism for pruning dead memories below a certain
-  activation threshold over time.
+- Core MCP tools (`remember`, `recall`, `read`) are explicitly mapped; the 
+  remaining ~30 tools are currently stubbed.
+- Adaptive active decay (ACT-R) is now applied periodically to the engram pool 
+  via background database ticks.
 
 ## 4. Security and Isolation
 

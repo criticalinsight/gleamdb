@@ -2,7 +2,7 @@ import aarondb
 import aarondb/fact.{
   All, AttributeConfig, EntityId, Int, LatestOnly, Many, One, Str, Uid,
 }
-import aarondb/shared/types
+import aarondb/shared/query_types.{PullMany, PullMap, PullSingle}
 import gleam/dict
 import gleam/list
 import gleam/option.{None, Some}
@@ -45,9 +45,9 @@ pub fn cardinality_one_test() {
 
   // Should only have the second one
   case result {
-    types.PullMap(m) -> {
+    PullMap(m) -> {
       case dict.get(m, "user/email") {
-        Ok(types.PullSingle(Str("second@example.com"))) -> should.be_true(True)
+        Ok(PullSingle(Str("second@example.com"))) -> should.be_true(True)
         _ -> should.fail()
       }
     }
@@ -83,9 +83,9 @@ pub fn cardinality_many_test() {
 
   let result = aarondb.pull(db, eid, aarondb.pull_attr("user/role"))
   case result {
-    types.PullMap(m) -> {
+    PullMap(m) -> {
       case dict.get(m, "user/role") {
-        Ok(types.PullMany(roles)) -> list.length(roles) |> should.equal(2)
+        Ok(PullMany(roles)) -> list.length(roles) |> should.equal(2)
         _ -> should.fail()
       }
     }

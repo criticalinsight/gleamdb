@@ -1,4 +1,4 @@
-import aarondb/shared/types.{type QueryContext, QueryContext}
+import aarondb/shared/state.{type QueryContext}
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list

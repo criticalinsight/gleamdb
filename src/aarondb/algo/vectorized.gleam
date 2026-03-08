@@ -1,11 +1,12 @@
-import aarondb/fact.{type ColumnChunk, Float, Int}
+import aarondb/fact.{Float, Int}
+import aarondb/storage/internal.{type StorageChunk}
 import gleam/list
 
-pub fn sum_column(chunk: ColumnChunk) -> Float {
+pub fn sum_column(chunk: StorageChunk) -> Float {
   sum_node(chunk.values)
 }
 
-pub fn chunks_to_datoms(chunks: List(fact.ColumnChunk)) -> List(fact.Datom) {
+pub fn chunks_to_datoms(chunks: List(internal.StorageChunk)) -> List(fact.Datom) {
   list.flat_map(chunks, fn(chunk) {
     node_to_values(chunk.values)
     |> list.map(fn(v) {
@@ -22,16 +23,17 @@ pub fn chunks_to_datoms(chunks: List(fact.ColumnChunk)) -> List(fact.Datom) {
   })
 }
 
-fn node_to_values(node: fact.CrackingNode) -> List(fact.Value) {
+fn node_to_values(node: internal.CrackingNode) -> List(fact.Value) {
   case node {
-    fact.Leaf(vs) -> vs
-    fact.Branch(_, l, r) -> list.append(node_to_values(l), node_to_values(r))
+    internal.Leaf(vs) -> vs
+    internal.Branch(_, l, r) ->
+      list.append(node_to_values(l), node_to_values(r))
   }
 }
 
-fn sum_node(node: fact.CrackingNode) -> Float {
+fn sum_node(node: internal.CrackingNode) -> Float {
   case node {
-    fact.Leaf(values) -> {
+    internal.Leaf(values) -> {
       list.fold(values, 0.0, fn(acc, v) {
         case v {
           Int(i) -> acc +. int_to_float(i)
@@ -40,13 +42,13 @@ fn sum_node(node: fact.CrackingNode) -> Float {
         }
       })
     }
-    fact.Branch(_, left, right) -> {
+    internal.Branch(_, left, right) -> {
       sum_node(left) +. sum_node(right)
     }
   }
 }
 
-pub fn avg_column(chunk: ColumnChunk) -> Float {
+pub fn avg_column(chunk: StorageChunk) -> Float {
   let len = count_node(chunk.values)
   case len {
     0 -> 0.0
@@ -54,10 +56,10 @@ pub fn avg_column(chunk: ColumnChunk) -> Float {
   }
 }
 
-pub fn count_node(node: fact.CrackingNode) -> Int {
+pub fn count_node(node: internal.CrackingNode) -> Int {
   case node {
-    fact.Leaf(values) -> list.length(values)
-    fact.Branch(_, left, right) -> count_node(left) + count_node(right)
+    internal.Leaf(values) -> list.length(values)
+    internal.Branch(_, left, right) -> count_node(left) + count_node(right)
   }
 }
 

@@ -1,39 +1,49 @@
 import aarondb/engine
 import aarondb/process_extra as aarondb_process_extra
-import aarondb/shared/types.{
-  type QueryResult, type ReactiveDelta, type ReactiveMessage, Delta, Notify,
-  Subscribe,
-}
+import aarondb/shared/ast
+import aarondb/shared/query_types
+import aarondb/shared/state
 import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/option.{None}
 import gleam/otp/actor
 import gleam/result
+import gleam/set
+
+pub type ReactiveMessage {
+  Subscribe(
+    query: ast.Query,
+    attributes: List(String),
+    subscriber: Subject(query_types.ReactiveDelta),
+    initial_state: query_types.QueryResult,
+  )
+  Notify(changed_attributes: List(String), current_state: state.DbState)
+}
 
 type ActiveQuery {
   ActiveQuery(
-    query: List(types.BodyClause),
+    query: ast.Query,
     attributes: List(String),
-    subscriber: Subject(ReactiveDelta),
-    last_result: QueryResult,
+    subscriber: Subject(query_types.ReactiveDelta),
+    last_result: query_types.QueryResult,
   )
 }
 
-type State {
-  State(queries: List(ActiveQuery))
+type ReactiveState {
+  ReactiveState(queries: List(ActiveQuery))
 }
 
-pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
-  actor.new(State(queries: []))
-  |> actor.on_message(fn(state: State, msg: ReactiveMessage) {
+pub fn start_link() -> Result(Subject(state.ReactiveMessage), actor.StartError) {
+  actor.new(ReactiveState(queries: []))
+  |> actor.on_message(fn(st: ReactiveState, msg: state.ReactiveMessage) {
     case msg {
-      Subscribe(query, attrs, sub, initial_state) -> {
+      state.Subscribe(query, attrs, sub, initial_state) -> {
         let new_query = ActiveQuery(query, attrs, sub, initial_state)
-        actor.continue(State(queries: [new_query, ..state.queries]))
+        actor.continue(ReactiveState(queries: [new_query, ..st.queries]))
       }
-      Notify(changed_attrs, db_state) -> {
+      state.Notify(changed_attrs, db_state) -> {
         let new_queries =
-          list.filter_map(state.queries, fn(aq: ActiveQuery) {
+          list.filter_map(st.queries, fn(aq: ActiveQuery) {
             case aarondb_process_extra.is_alive(aq.subscriber) {
               False -> Error(Nil)
               True -> {
@@ -51,7 +61,10 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
                     case added.rows == [] && removed.rows == [] {
                       True -> Ok(aq)
                       False -> {
-                        process.send(aq.subscriber, Delta(added, removed))
+                        process.send(
+                          aq.subscriber,
+                          query_types.Delta(added, removed),
+                        )
                         Ok(ActiveQuery(..aq, last_result: current_result))
                       }
                     }
@@ -61,7 +74,7 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
               }
             }
           })
-        actor.continue(State(queries: new_queries))
+        actor.continue(ReactiveState(queries: new_queries))
       }
     }
   })
@@ -69,9 +82,10 @@ pub fn start_link() -> Result(Subject(ReactiveMessage), actor.StartError) {
   |> result.map(fn(started) { started.data })
 }
 
-import gleam/set
-
-fn diff(old: QueryResult, new: QueryResult) -> #(QueryResult, QueryResult) {
+fn diff(
+  old: query_types.QueryResult,
+  new: query_types.QueryResult,
+) -> #(query_types.QueryResult, query_types.QueryResult) {
   let old_set = set.from_list(old.rows)
   let new_set = set.from_list(new.rows)
 
@@ -79,12 +93,12 @@ fn diff(old: QueryResult, new: QueryResult) -> #(QueryResult, QueryResult) {
   let removed_rows = set.difference(old_set, new_set) |> set.to_list()
 
   #(
-    types.QueryResult(
+    query_types.QueryResult(
       rows: added_rows,
       metadata: new.metadata,
       updated_columnar_store: None,
     ),
-    types.QueryResult(
+    query_types.QueryResult(
       rows: removed_rows,
       metadata: new.metadata,
       updated_columnar_store: None,

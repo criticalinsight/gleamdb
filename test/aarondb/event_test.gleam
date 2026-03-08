@@ -1,5 +1,4 @@
 import aarondb
-import aarondb/engine
 import aarondb/event
 import aarondb/fact.{Str}
 import aarondb/q
@@ -31,7 +30,7 @@ pub fn event_assertion_test() {
     |> q.where(q.v("e"), "user/email", q.v("email"))
     |> q.to_clauses()
 
-  let results = engine.run(state, query, [], None, None)
+  let results = aarondb.query_state(state, query)
   should.equal(list.length(results.rows), 1)
 
   let assert Ok(binding) = list.first(results.rows)
@@ -53,7 +52,7 @@ pub fn event_idempotency_test() {
     |> q.where(q.v("e"), "event/type", q.s("test/event"))
     |> q.to_clauses()
 
-  let results = engine.run(state, query, [], None, None)
+  let results = aarondb.query_state(state, query)
   should.equal(list.length(results.rows), 1)
 }
 

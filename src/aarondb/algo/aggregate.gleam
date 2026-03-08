@@ -1,5 +1,5 @@
 import aarondb/fact.{type Value, Float, Int}
-import aarondb/shared/types.{type AggFunc, Avg, Count, Max, Median, Min, Sum}
+import aarondb/shared/ast
 import gleam/float
 import gleam/int
 import gleam/list
@@ -7,20 +7,20 @@ import gleam/order
 import gleam/result
 import gleam/string
 
-pub fn aggregate(values: List(Value), op: AggFunc) -> Result(Value, String) {
+pub fn aggregate(values: List(Value), op: ast.AggFunc) -> Result(Value, String) {
   case op {
-    Count -> Ok(Int(list.length(values)))
-    Sum -> sum(values)
-    Min -> min_val(values)
-    Max -> max_val(values)
-    Avg -> avg(values)
-    Median -> median(values)
+    ast.Count -> Ok(Int(list.length(values)))
+    ast.Sum -> sum(values)
+    ast.Min -> min_val(values)
+    ast.Max -> max_val(values)
+    ast.Avg -> avg(values)
+    ast.Median -> median(values)
   }
 }
 
 fn sum(values: List(Value)) -> Result(Value, String) {
   case values {
-    [] -> Ok(Float(0.0))
+    [] -> Ok(Int(0))
     [first, ..rest] -> {
       list.try_fold(rest, first, fn(acc, v) {
         case acc, v {
