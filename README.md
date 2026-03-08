@@ -143,6 +143,7 @@ let query =
   |> q.order_by("ts", Asc)
   |> q.limit(100)
   |> q.to_clauses
+```
 
 ### Graph, Federation & Time Travel
 Native primitives for complex traversals and external data:
@@ -195,6 +196,14 @@ aarondb.set_schema(db, "ticker/price", config)
 
 ## 📚 Documentation
 
+### Manuals
+- [Query DSL](docs/manual/query_dsl.md)
+- [Supervision & Fault Tolerance](docs/manual/supervision.md)
+- [Architecture Details](docs/architecture.md)
+- [Performance Guide (Silicon Saturation)](docs/performance_guide.md)
+- [Distributed Guide (The Sovereign Fabric)](docs/distributed_guide.md)
+
+### Features
 - [Search & Similarity (HNSW)](docs/features/vector_index.md)
 - [Prefix Search (ART)](docs/features/art.md)
 - [Cognitive Memory & Semantic Retrieval](docs/features/cognitive_memory.md)
@@ -202,12 +211,19 @@ aarondb.set_schema(db, "ticker/price", config)
 - [Graph Algorithms](docs/features/graph_algorithms.md)
 - [Data Federation](docs/features/federation.md)
 - [Time Travel (Diff API)](docs/features/time_travel.md)
-- [Performance Guide (Silicon Saturation)](docs/performance_guide.md)
-- [Distributed Guide (The Sovereign Fabric)](docs/distributed_guide.md)
-- [Architecture Details](docs/architecture.md)
+- [Distributed Analytics](docs/features/analytics.md)
+- [GleamCMS AI Architect](docs/features/ai_architect.md)
+
+### Specifications & Design
 - [Datalog Specification](docs/specs/gleam_datalog.md)
+- [Capability-Based Security](docs/specs/capability_security.md)
+- [Agent Memory Context (RAG)](docs/specs/agent_memory_context.md)
+- [Adaptive Performance Cracking](docs/specs/adaptive_performance_cracking.md)
+- [Time Series & Analytics PRD](docs/specs/time_series_analytics_prd.md)
+- [Sovereign Fabric Specification](docs/specs/sovereign_fabric.md)
 - [The Completeness (Roadmap)](docs/specs/the_completeness.md)
 - [Gap Analysis](docs/gap_analysis.md)
+
 
 ## 🤝 Contributing
 AaronDB is built with the goal of providing a "Sovereign Knowledge Service" for autonomous agents like **Sly**. Contributions that respect the de-complecting philosophy are welcome.
